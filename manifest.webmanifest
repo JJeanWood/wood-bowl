@@ -1,0 +1,17 @@
+{
+  "name": "Wood Bowl",
+  "short_name": "Wood Bowl",
+  "description": "Le team manager du Bol de Bois : composez, entraînez, cognez, et lisez la gazette.",
+  "lang": "fr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b161d",
+  "theme_color": "#0b161d",
+  "icons": [
+    {"src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icones/icone-masque-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
