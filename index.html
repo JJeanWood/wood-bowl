@@ -26,7 +26,9 @@
 <script src="gazette2.js"></script>
 <script src="son.js"></script>
 <script src="jeu.js"></script>
-<script>window.LABO=true</script>
+<script>window.LABO=true;
+/* dans le Labo, les petits tableaux du mur des légendes ne sont pas embarqués : on montre le portrait à la place */
+document.addEventListener('error',function(e){var t=e.target;if(t&&t.tagName==='IMG'&&t.src.indexOf('/tableau/')>=0&&!t.dataset.repli){t.dataset.repli='1';t.src=t.src.replace('/tableau/','/')}},true);</script>
 <script>
 /* appli installable : seulement quand le jeu est servi depuis son propre site (pas dans l'aperçu Claude) */
 if('serviceWorker' in navigator&&!window.claude&&location.protocol==='https:'){
