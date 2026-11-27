@@ -14,7 +14,7 @@ function peupleDe(T){const n={};T.joueurs.forEach(p=>{if(!p.mort)n[p.race]=(n[p.
 function resumePartie(id,X){const T=X.teams[0];const vedette=T.joueurs.filter(p=>!p.mort).sort((a,b)=>(b.f+b.v+b.t)-(a.f+a.v+a.t))[0];
   return{id,nom:T.nom,couleur:T.couleur,peuple:peupleDe(T),saison:X.saison,jour:X.jour,nbJours:X.calendrier?X.calendrier.length:10,phase:X.phase,fini:!!X.fini,rang:rangDe(X,0),or:T.or,
     titres:X.titres||0,div:X.div||4,coupes:X.coupes||0,tete:vedette?[vedette.race,vedette.tete]:null,maj:Date.now()}}
-function sauver(){if(!S||!partieId)return;try{localStorage.setItem(PFX+partieId,JSON.stringify(S));const L=lireIndex()||[];const r=resumePartie(partieId,S);const i=L.findIndex(x=>x.id===partieId);if(i>=0)L[i]=r;else L.push(r);ecrireIndex(L);localStorage.setItem(DERN,partieId)}catch(e){}programmerEnvoi(partieId)}
+function sauver(){if(S&&S.enLigue){if(window.LigueSolo)LigueSolo.synchroniser();return}if(!S||!partieId)return;try{localStorage.setItem(PFX+partieId,JSON.stringify(S));const L=lireIndex()||[];const r=resumePartie(partieId,S);const i=L.findIndex(x=>x.id===partieId);if(i>=0)L[i]=r;else L.push(r);ecrireIndex(L);localStorage.setItem(DERN,partieId)}catch(e){}programmerEnvoi(partieId)}
 function preparerSauvegardes(){ /* l'ancienne partie unique devient le premier emplacement */
   if(lireIndex())return;const L=[];const old=charger();
   if(old){const id=nouvelId();try{localStorage.setItem(PFX+id,JSON.stringify(old));localStorage.setItem(DERN,id)}catch(e){}courant(old);L.push(resumePartie(id,old))}
@@ -456,7 +456,7 @@ function vueClubComplet(){
   if(moi.or<0)h+='<div class="alerte-bloc" style="margin-top:10px"><b>Huissiers.</b> Tant que la caisse est négative : pas de recrutement, d\'embauche ni de pot-de-vin. Sous '+DETTE_MAX+' po, ils vendent d\'office votre meilleur remplaçant à 60 % de sa valeur.</div>';
   h+='<table class="prev"><tbody>'+lig('Billetterie moyenne (selon la ferveur)',pr.billetterie)+lig('Droits de retransmission',pr.tv)+(pr.buvette?lig('Buvette',pr.buvette):'')+lig('Sponsor, part fixe',pr.sponsor)+(pr.pret?lig('Remboursement du prêt',pr.pret):'')+lig('Salaires des joueurs',pr.salaires)+lig('Salaires du staff',pr.staff)+'<tr class="total"><td>Solde prévu par match, hors primes</td><td class="'+(pr.solde>=0?'pos':'neg')+'">'+(pr.solde>0?'+':'')+pr.solde+' po</td></tr></tbody></table>'
     +'<p class="note">En plus : victoire +10, nul +4, 2 po par but à la billetterie, primes du sponsor. Fin de saison : '+PRIX_FIN.join(', ')+' po selon le rang.</p>'+courbe()
-    +'<div class="sponsor" style="margin-top:12px"><div><b>Banque Grinkle & Fils</b><p>'+(moi.pret?'Prêt en cours : encore '+pl(moi.pret.reste,'remboursement')+' de '+PRET.parMatch+' po.':'Prêt de '+PRET.montant+' po tout de suite, remboursé '+PRET.parMatch+' po par match pendant '+PRET.nb+' matchs ('+PRET.parMatch*PRET.nb+' po au total). Un seul prêt à la fois, même en dette.')+'</p></div>'+(moi.pret?'':'<button class="discret or" data-act="pret">Emprunter</button>')+'</div>'
+    +'<div class="sponsor" style="margin-top:12px"><div><b>Banque Grinkle & Fils</b><p>'+(moi.pret?'Prêt en cours : encore '+pl(moi.pret.reste,'remboursement')+' de '+PRET.parMatch+' po.':'Prêt de '+PRET.montant+' po tout de suite, remboursé '+PRET.parMatch+' po par match pendant '+PRET.nb+' matchs ('+PRET.parMatch*PRET.nb+' po au total). Un seul prêt à la fois, même en dette.')+'</p></div>'+(moi.pret?'':'<button class="discret or" data-act="banque">Emprunter</button>')+'</div>'
     +'<details class="regles"><summary>Comment gérer son argent</summary><ul>'
     +'<li><b>Ce qui rapporte</b><span>Les droits de retransmission ('+DROITS_TV+' po par journée pour tous), la billetterie (surtout à domicile, et d\'autant plus que le public est fervent), les primes de match, le sponsor, la prime de fin de saison, et les ventes de joueurs à l\'intersaison.</span></li>'
     +'<li><b>Ce qui coûte</b><span>Les salaires, fixés à la signature et revus à chaque intersaison selon les progrès du joueur ; le staff ; les recrues ; les pots-de-vin, soins et amendes.</span></li>'
@@ -1001,7 +1001,10 @@ function vueTuto(){const t=TUTO[tuto];
 const ONGLETS=[['vestiaire','Vestiaire'],['gazette','Gazette'],['ligue','Ligue'],['legendes','Légendes'],['marche','Marché'],['club','Club']];
 function rendre(){cacherBulle();
   if(!S){$app.innerHTML=({titre:vueTitre,solo:vueSolo,nouvelle:vueAccueil,multi:vueMulti,reglages:vueReglages}[ecran]||vueTitre)()+(message?vueMessage():'')+(confirmation?vueConfirm():'');return}
-  const v={vestiaire:vueVestiaire,gazette:vueGazette,ligue:vueLigue,legendes:vueLegendes,marche:vueMarche,club:vueClub}[vue]();
+  /* en ligue entre amis (S.enLigue), on garde tous les écrans du solo ; ligue-ui.js remplace le marché par les enchères et ajoute un bandeau */
+  const EL=!!S.enLigue&&!!window.LigueSolo;
+  let v={vestiaire:vueVestiaire,gazette:vueGazette,ligue:vueLigue,legendes:vueLegendes,marche:EL?LigueSolo.marche:vueMarche,club:vueClub}[vue]();
+  if(EL)v=LigueSolo.bandeau()+LigueSolo.habiller(v);
   $app.innerHTML=entete()+v+'<nav class="onglets" aria-label="Onglets"><div>'+ONGLETS.map(o=>'<button data-act="vue" data-v="'+o[0]+'" '+(vue===o[0]?'aria-current="page"':'')+'>'+svg(o[0])+o[1]+'</button>').join('')+'</div></nav>'
     +(offre?vueOffre():fiche!==null?vueFiche():clubVu!==null?vueClubAdv():tiroir?vueTiroir():pretVu?vuePret():'')+(legVue?vueFicheLegende():'')+(prono?vuePronostic():'')+(guide?vueGuide():'')+(message?vueMessage():'')+(confirmation?vueConfirm():'')+(tuto>=0?vueTuto():'')+(deuil?vueDeuil():'');
   tombe=false;
@@ -1023,6 +1026,8 @@ function lancerJournee(){
 }
 function action(b,ev){
   const act=b.dataset.act,v=b.dataset.v,id=Number(b.dataset.id);const moi=S&&moiT();
+  /* en ligue, ce qui touche à la caisse ou à l'effectif passe par le serveur */
+  if(S&&S.enLigue&&window.LigueSolo){const r=LigueSolo.action(act,v,id,b);if(r!==undefined)return r}
   switch(act){
     case'voile':if(ev.target.closest('.fiche')||ev.target.closest('.tiroir'))return false;if(guide)guide=false;else{fiche=null;clubVu=null;offre=null;prono=false;legVue=null;tiroir=false;pretVu=false}break;
     case'son':Son.basculer(v);break;
@@ -1084,7 +1089,7 @@ function action(b,ev){
       if(oui||a.k==='depart')demander(a.k==='depart'?(oui?'Laisser partir '+a.p.nom+' ?':'Retenir '+a.p.nom+' ?'):'Engager '+a.p.nom+' ?',a.k==='depart'?(oui?'Il quitte le club définitivement. Vous recevez '+a.indem+' po.':'Il reste, mais commencera la saison fatigué et grognon.'):(a.prime?'Prime : <b>'+a.prime+' po</b>. ':'')+''+(a.p.sexe==='f'?'Elle':'Il')+' arrive tout de suite dans votre effectif.',oui?'Confirmer':'Le retenir',go);else go();break}
     case'filtreR':filtreR=v;break;
     case'evt':{const r=resoudreEvenement(S,v==='1');if(r)informer(v==='1'?'C\'est fait':'Rebondissement',esc(r),'piece');else Son.jouer('refus');preparerOpts();break}
-    case'pret':demander('Emprunter '+PRET.montant+' po ?','Vous recevez '+PRET.montant+' po tout de suite, puis '+PRET.parMatch+' po sont prélevés à chaque match pendant '+PRET.nb+' matchs. Total remboursé : '+PRET.parMatch*PRET.nb+' po.','Emprunter',()=>{if(emprunter(S))Son.jouer('piece')});break;
+    case'banque':demander('Emprunter '+PRET.montant+' po ?','Vous recevez '+PRET.montant+' po tout de suite, puis '+PRET.parMatch+' po sont prélevés à chaque match pendant '+PRET.nb+' matchs. Total remboursé : '+PRET.parMatch*PRET.nb+' po.','Emprunter',()=>{if(emprunter(S))Son.jouer('piece')});break;
     case'theme':appliquerTheme(v);break;
     case'sponsor':{const s=sponsorDe(v);demander('Signer avec '+s.nom+' ?',esc(s.desc)+' Le contrat court jusqu\'à la fin de la saison, sans retour possible.','Signer',()=>{S.sponsor=v;Son.jouer('piece')});break}
     case'embaucher':{const c=S.candidats[v][id];if(!c)break;const cur=moi.staff[v];

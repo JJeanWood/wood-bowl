@@ -943,3 +943,7 @@ li.mien{color:var(--creme)}
 .lg-jours button{padding:8px 0}
 .lg-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:8px 0}
 .lg-createur{margin-top:14px;border-color:var(--or)}
+/* en ligue, dans les écrans du solo : le bandeau de la ligue et l'heure du match */
+.lg-bandeau-solo{display:flex;gap:10px;align-items:center;margin:8px 0 2px;font-size:13.5px;color:var(--creme-sourde)}
+.lg-bandeau-solo span{min-width:0}
+.lg-prochain{text-align:center;margin-top:12px;border-color:var(--or)}

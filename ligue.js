@@ -143,7 +143,7 @@ function demarrerSaison(S){
   nouvelleCoupe(S);
   S.marche=marcheCommun(S);
   delete S._noms;
-  preparerJournee(S);
+  preparerJournee(S);preparerPrets(S);
 }
 
 /* ---------- Marché commun ---------- */
@@ -174,6 +174,7 @@ function depouillerMercato(S,mises){
   });
   S.marche=[];
   S.mercato={saison:S.saison,jour:S.jour,ventes:r.ventes,jeunes:r.jeunes};
+  preparerPrets(S);
   return r;
 }
 
@@ -235,6 +236,8 @@ function appliquerAction(S,T,a){
     case'renvoyer':{const p=T.joueurs.find(x=>x.id===a.id);if(!p||p.pret)return ko('Joueur introuvable.');if(T.joueurs.length<=MIN_EFFECTIF)return ko('Il vous faut au moins '+MIN_EFFECTIF+' joueurs.');
       const po=Math.round(valeur(p)*.4);T.or+=po;T.joueurs=T.joueurs.filter(x=>x!==p);T.liste=(T.liste||[]).filter(i=>i!==p.id);return ok(p.nom+' quitte le club (+'+po+' po).')}
     case'pret':{const e=emprunterJoueur(S,a.id,T);return e?ko(e):ok()}
+    case'emprunt':{if(T.pret)return ko('Vous remboursez déjà un prêt.');return emprunter(S,T)?ok():ko('Le banquier refuse.')}
+    case'renommer':{const p=T.joueurs.find(x=>x.id===a.id);const n=String(a.nom||'').replace(/[\u0000-\u001f<>]/g,'').trim().slice(0,28);if(!p||!n||p.pret)return ko('Nom invalide.');if(S._sexe){delete S._sexe[p.nom];S._sexe[n]=p.sexe||'m'}p.nom=n;return ok()}
     case'funerailles':{const d=(g.deuils||[])[a.i];if(!d||d.fun)return ko('Hommage déjà rendu.');if(T.or<10)return ko('Il vous faut 10 po.');T.or-=10;T.pop=clamp(T.pop+3,5,100);d.vu=true;d.fun=true;return ok()}
     case'arrivee':{if(S.phase!=='inter'||!g.inter)return ko('Ce n\'est pas l\'intersaison.');const m=reponseArrivee(S,a.i,!!a.oui,T);return ok(m)}
     case'lister':{if(S.phase!=='inter'||!g.inter)return ko('Ce n\'est pas l\'intersaison.');if(!T.joueurs.some(p=>p.id===a.id))return ko('Joueur introuvable.');
@@ -242,7 +245,7 @@ function appliquerAction(S,T,a){
     case'offres':{if(S.phase!=='inter'||!g.inter)return ko('Ce n\'est pas l\'intersaison.');offresRecues(S,T);return ok()}
     case'offre':{if(S.phase!=='inter'||!g.inter)return ko('Ce n\'est pas l\'intersaison.');const e=accepterOffre(S,a.i,T);return e?ko(e):ok()}
     case'echangeIA':{if(S.phase!=='inter'||!g.inter)return ko('Ce n\'est pas l\'intersaison.');
-      const donne=Array.isArray(a.donne)?a.donne.filter(id=>T.joueurs.some(p=>p.id===id)):[];const po=Math.max(0,Math.floor(Number(a.po)||0));
+      const donne=Array.isArray(a.donne)?a.donne.filter(id=>T.joueurs.some(p=>p.id===id)):[];const po=clamp(Math.floor(Number(a.po)||0),-50,Math.max(0,T.or));
       const r=proposerEchange(S,a.cible,donne,po,T);if(r.statut!=='oui')return{erreur:r.msg,reponse:r};
       executerEchange(S,a.cible,donne,po,T);return ok(r.msg)}
   }
@@ -274,6 +277,9 @@ function appliquerEchange(S,e){
   if(S.echanges.length>30)S.echanges.shift();
   return null;
 }
+
+/* les prêts d'urgence sont tirés par le serveur, à l'avance, pour les clubs qui n'ont plus 5 joueurs valides */
+function preparerPrets(S){if(S.phase!=='saison'||S.fini)return;humains(S).forEach(T=>{if(besoinPret(S,T))offresPret(S,T)})}
 
 /* ---------- Ce que chacun a le droit de voir ---------- */
 /* L'état complet ne quitte jamais le serveur. vuePour(S,id) en fait la copie destinée au club n° id (ou à un simple spectateur : id = -1) :

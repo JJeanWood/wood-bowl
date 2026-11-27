@@ -98,6 +98,16 @@ const valeur=p=>Math.max(5,Math.round(valeurBase(p)+marge(p)/3));
 const salaire=p=>Math.max(1,Math.round(valeurBase(p)/9*(p.trait==='vedette'?1.4:1)));
 const etoilesPot=m=>m<=3?1:m<=7?2:m<=12?3:m<=17?4:5;
 
+/* tous les noms déjà portés dans la partie : deux joueurs ne doivent jamais s'appeler pareil.
+   NOMS_RECENTS retient les derniers créés, pas encore rangés dans une équipe ou au marché (ils naissent souvent par paquets). */
+const NOMS_RECENTS=[];
+function nomsUtilises(S){
+  const pris=new Set(NOMS_RECENTS);const voir=p=>{if(p&&p.nom)pris.add(p.nom)};
+  (S.teams||[]).forEach(T=>{T.joueurs.forEach(voir);const I=T.gest&&T.gest.inter;if(I&&I.arrivees)I.arrivees.forEach(a=>voir(a.p))});
+  (S.marche||[]).forEach(voir);if(S.coupe&&S.coupe.invites)S.coupe.invites.forEach(T=>T.joueurs.forEach(voir));
+  if(S.draft&&S.draft.vivier)S.draft.vivier.forEach(voir);if(S.inter&&S.inter.arrivees)S.inter.arrivees.forEach(a=>voir(a.p));if(S.evt&&S.evt.p)voir(S.evt.p);
+  return pris;
+}
 function nouveauJoueur(S,race,bonus,opts){
   opts=opts||{};
   const poste=opts.poste||wpick(POSTE_IDS,(x,i)=>AFF[race][i]);
@@ -107,7 +117,7 @@ function nouveauJoueur(S,race,bonus,opts){
   const typeP=opts.portrait||(opts.jeune&&R()<.5?'jeune':'std');
   const nF=(PORTRAITS_F[race]&&PORTRAITS_F[race].std.length)||0;
   const sexe=opts.sexe||(R()<.42*Math.min(1,nF/4)&&aPortraitF(race,typeP)?'f':'m');
-  const p={id:S.nextId++,sexe,nom:nomJoueur(race,S._noms,sexe),race,poste,f:mk('f'),v:mk('v'),t:mk('t'),forme:ri(72,90),trait,tete:null,
+  const p={id:S.nextId++,sexe,nom:nomJoueur(race,S._noms||nomsUtilises(S),sexe),race,poste,f:mk('f'),v:mk('v'),t:mk('t'),forme:ri(72,90),trait,tete:null,
     blesse:0,suspendu:0,mort:false,cicatrices:0,etoiles:0,titulaire:false,entr:'repos',gain:null,saisons:0,
     buts:0,victimes:0,matchs:0,pd:0,cj:0,cr:0,sb:0,sv:0,sm:0,sj:0,spd:0,sn:0,snb:0};
   if(trait==='vedette'){p.f=clamp(p.f+8,15,95);p.v=clamp(p.v+8,15,95);p.t=clamp(p.t+8,15,95);p.vedV2=1}
@@ -117,6 +127,7 @@ function nouveauJoueur(S,race,bonus,opts){
   p.sal=salaire(p);
   p.tete=choisirPortrait(S,race,typeP,sexe);
   (S._sexe||(S._sexe={}))[p.nom]=sexe;
+  NOMS_RECENTS.push(p.nom);if(NOMS_RECENTS.length>80)NOMS_RECENTS.shift();
   completerJoueur(p,opts,typeP);
   return p;
 }
@@ -781,6 +792,7 @@ function jouerJournee(S,ordres){
   if(S.multi){commune=editionCommune(S,resultats,cache,jour+1);if(cup)commune.coupe={tour:cup.tour,matchs:cup.matchs,fin:cup.fin};if(S.fini)commune.final=true}
   S.marche=S.multi?marcheCommun(S):nouveauMarche(S);
   preparerJournee(S);
+  if(S.multi)preparerPrets(S);
   return S.multi?{par:nums,commune}:nums[H[0].id];
 }
 /* comptes, ferveur, dettes et gazette d'un club humain après sa journée */
@@ -1014,7 +1026,7 @@ function executerEchange(S,cibleId,donneIds,po,M){
   T.joueurs=T.joueurs.filter(p=>p!==cible).concat(donnes);moi.joueurs=moi.joueurs.filter(p=>!donnes.includes(p)).concat([cible]);
   donnes.forEach(p=>{p.titulaire=false;p.entr='repos'});cible.titulaire=false;cible.entr='repos';cible.sal=salaire(cible);
   moi.or-=po;T.liste=T.liste.filter(id=>id!==cibleId);moi.liste=moi.liste.filter(id=>!donneIds.includes(id));
-  I.recues=I.recues.filter(o=>!donneIds.includes(o.veut));
+  I.recues=I.recues.filter(o=>!donneIds.includes(o.veut)&&o.donne!==cibleId);
   varierTetes(moi,cible);donnes.forEach(p=>varierTetes(T,p));
   I.faits++;I.journal.push(cible.nom+' arrive de '+T.court+(donnes.length?' contre '+donnes.map(p=>p.nom).join(' et '):'')+(po>0?(donnes.length?' et ':' contre ')+po+' po':po<0?', avec '+(-po)+' po en plus':''));
 }
@@ -1036,6 +1048,8 @@ function accepterOffre(S,k,M){
   const o=I.recues[k];if(!o)return'Offre introuvable.';
   const T=S.teams[o.de];const p=moi.joueurs.find(x=>x.id===o.veut);if(!p)return'Joueur introuvable.';
   const q=o.donne?T.joueurs.find(x=>x.id===o.donne):null;
+  /* le joueur promis en échange a quitté ce club entre-temps : l'offre ne tient plus (sinon on céderait son joueur contre rien) */
+  if(o.donne&&!q){I.recues=I.recues.filter(x=>x!==o);return'Le joueur proposé en échange n\'est plus dans ce club : l\'offre est annulée.'}
   if(moi.joueurs.length-1+(q?1:0)<MIN_EFFECTIF)return'Votre effectif tomberait sous 5 joueurs.';
   if(I.faits>=MAX_ECHANGES)return'Vous avez déjà fait '+MAX_ECHANGES+' échanges cette intersaison.';
   moi.joueurs=moi.joueurs.filter(x=>x!==p);T.joueurs.push(p);p.titulaire=false;

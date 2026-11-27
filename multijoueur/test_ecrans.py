@@ -17,9 +17,9 @@ INIT = "window.__SRC=" + json.dumps(source) + ";\n" + fausse + r"""
     async ligues(uid){return B.clubs.filter(c=>c.user_id===uid).map(c=>({L:copie(B.ligues.find(l=>l.id===c.ligue_id)),club:copie(c)}))},
     async charger(id,uid){const L=copie(B.ligues.find(l=>l.id===id)),clubs=copie(B.clubs.filter(c=>c.ligue_id===id).sort((a,b)=>a.club_index-b.club_index));const moi=clubs.find(c=>c.user_id===uid);
       const tour=L.etat&&L.etat.encheres&&L.etat.encheres.tour;const mises={};if(moi&&tour)B.encheres.filter(e=>e.ligue_id===id&&e.club_index===moi.club_index&&e.tour===tour).forEach(e=>{mises[e.joueur_id]=e.montant});
-      let ordres=null,gaz=null;if(moi){const o=B.ordres.find(x=>x.ligue_id===id&&x.club_index===moi.club_index&&x.journee===L.version+1);ordres=o?copie(o.contenu):null;
-        const tri=(a,b)=>b.saison-a.saison||b.journee-a.journee;const m=B.gazettes.filter(g=>g.ligue_id===id&&g.club_index===moi.club_index).sort(tri)[0],c=B.gazettes.filter(g=>g.ligue_id===id&&g.club_index===-1).sort(tri)[0];if(m||c)gaz={mienne:m?copie(m.contenu):null,commune:c?copie(c.contenu):null}}
-      return{L,clubs,vue:moi?copie(B.vues[id+':'+moi.club_index]||null):null,mises,ordres,gaz}},
+      let ordres=null,gaz=null,gazettes=[];if(moi){const o=B.ordres.find(x=>x.ligue_id===id&&x.club_index===moi.club_index&&x.journee===L.version+1);ordres=o?copie(o.contenu):null;
+        const tri=(a,b)=>a.saison-b.saison||a.journee-b.journee;gazettes=B.gazettes.filter(g=>g.ligue_id===id&&g.club_index===moi.club_index).sort(tri).map(g=>copie(g.contenu));const c=B.gazettes.filter(g=>g.ligue_id===id&&g.club_index===-1).sort(tri).pop();gaz={commune:c?copie(c.contenu):null}}
+      return{L,clubs,vue:moi?copie(B.vues[id+':'+moi.club_index]||null):null,mises,ordres,gaz,gazettes}},
     async envoyerOrdres(id,club,journee,contenu){B.ordres=B.ordres.filter(x=>!(x.ligue_id===id&&x.club_index===club&&x.journee===journee));B.ordres.push({ligue_id:id,club_index:club,journee,contenu:copie(contenu)});return{ok:true}},
     async miser(id,club,tour,joueur,montant){B.encheres=B.encheres.filter(e=>!(e.ligue_id===id&&e.club_index===club&&e.tour===tour&&e.joueur_id===joueur));B.encheres.push({ligue_id:id,club_index:club,tour,joueur_id:joueur,montant});return{ok:true}},
     async retirer(id,club,tour,joueur){B.encheres=B.encheres.filter(e=>!(e.ligue_id===id&&e.club_index===club&&e.tour===tour&&e.joueur_id===joueur));return{ok:true}}
@@ -92,43 +92,58 @@ async def main():
         await clic('[data-l="onglet"][data-v="ligue"]')
         t = await txt(); verifier('Saison 1 · journée 1 sur 10' in t and 'Classement' in t and 'Clôture du mercato' in t and 'Vous ' in t, 'la saison démarre : classement et horaires')
         await pg.screenshot(path=SORTIE + '/ecran5_saison.png', full_page=True)
-        # --- Mon club : sponsor, composition, consigne, entraînement ; les ordres partent tout seuls
-        verifier(await pg.evaluate("__B.ordres.length") == 1, 'ouvrir la ligue vaut présence : des ordres sont déposés')
-        await clic('[data-l="onglet"][data-v="club"]'); t = await txt()
-        verifier('à choisir pour la saison' in t.lower() and 'prochain match' in t.lower() and 'vos ordres' in t.lower() and 'plan de jeu' in t.lower() and 'composition automatique' in t.lower(), 'écran Mon club complet, rangé comme en solo')
-        c1 = await pg.locator('.vos-chances').count(); print('   chances affichées :', (await pg.inner_text('.legende-ch')).replace(chr(10), ' '))
-        verifier(c1 == 1 and 'score moyen' in (await txt()).lower(), '« Vos chances » affiché comme en solo')
-        await clic('[data-l="sponsor"]'); await pg.wait_for_timeout(400); verifier('à choisir pour la saison' not in (await txt()).lower(), 'sponsor signé')
-        await clic('[data-l="consigne"][data-v="brutal"]')
-        tit = await pg.evaluate("LG.ed.tit.slice()"); await clic('[data-l="titulaire"][data-id="%d"]' % tit[0])
-        premier = await pg.evaluate("LG.vue.club.joueurs[0].id"); await clic('[data-l="entr"][data-id="%d"][data-v="repos"]' % premier)
-        await clic('[data-l="tactique"][data-v="mur"]')
-        banc = await pg.evaluate("contenu=__B.ordres.find(x=>x.club_index===0).contenu.banc.slice()")
-        if len(banc) >= 3:
-            await clic('[data-l="monter"][data-id="%d"]' % banc[2]); nb = await pg.evaluate("__B.ordres.find(x=>x.club_index===0).contenu.banc.slice()")
-            verifier(nb.index(banc[2]) < nb.index(banc[1]), 'ordre du banc modifié avec les flèches')
+        # --- Mon club : en ligue, ce sont les écrans du solo
+        solo = lambda: pg.evaluate("!!(S&&S.enLigue)")
+        async def trouver_et_cliquer(sel):
+            if await pg.locator(sel).count() == 0:
+                for v in await pg.evaluate("[...document.querySelectorAll('[data-act=sous]')].map(b=>b.dataset.v)"):
+                    if await pg.locator('[data-act="sous"][data-v="%s"]' % v).count():
+                        await pg.locator('[data-act="sous"][data-v="%s"]' % v).first.click(); await pg.wait_for_timeout(200)
+                    if await pg.locator(sel).count(): break
+            await pg.locator(sel).first.click(); await pg.wait_for_timeout(500)
+        await clic('[data-l="onglet"][data-v="club"]'); await pg.wait_for_timeout(700); t = (await txt()).lower()
+        verifier(await solo() and await pg.locator('nav.onglets').count() == 1 and await pg.locator('.vos-chances').count() == 1, 'Mon club = le vestiaire du solo, avec « Vos chances »')
+        verifier(await pg.locator('[data-act="jouer"]').count() == 0 and 'coup d\'envoi' in t, 'le bouton « Jouer la journée » est remplacé par l\'heure du match')
+        verifier(await pg.evaluate("__B.ordres.length") == 1, 'ouvrir son club vaut présence : des ordres sont déposés')
+        await trouver_et_cliquer('[data-act="consigne"][data-v="brutal"]'); await trouver_et_cliquer('[data-act="tactique"][data-v="mur"]')
+        tit = await pg.evaluate("S.teams[0].joueurs.filter(p=>p.titulaire).map(p=>p.id)"); await trouver_et_cliquer('[data-act="titulaire"][data-id="%d"]' % tit[0])
+        premier = await pg.evaluate("S.teams[0].joueurs[0].id"); await trouver_et_cliquer('[data-act="entr"][data-id="%d"][data-v="repos"]' % premier); await pg.wait_for_timeout(700)
         o = await pg.evaluate("__B.ordres.find(x=>x.club_index===0).contenu")
-        verifier(o['consigne'] == 'brutal' and o['tactique'] == 'mur' and len(o['titulaires']) == 4 and o['entr'][str(premier)] == 'repos', 'ordres enregistrés : ' + str({k: o[k] for k in ('consigne', 'tactique')}))
+        verifier(o['consigne'] == 'brutal' and o['tactique'] == 'mur' and len(o['titulaires']) == len(tit) - 1 and o['entr'][str(premier)] == 'repos', 'ordres transmis au serveur à chaque changement : ' + str({k: o[k] for k in ('consigne', 'tactique')}))
         await pg.screenshot(path=SORTIE + '/ecran7_club.png', full_page=True)
-        # --- mercato : une mise
-        await clic('[data-l="onglet"][data-v="mercato"]'); verifier('Mercato ouvert' in await txt(), 'mercato ouvert')
+        # fiche d'un joueur, pronostic détaillé, observation de l'adversaire : comme en solo
+        await trouver_et_cliquer('[data-act="fiche"]'); verifier(await pg.locator('.fiche').count() >= 1, 'fiche du joueur'); await pg.keyboard.press('Escape'); await pg.wait_for_timeout(200)
+        await clic('[data-act="vue"][data-v="vestiaire"]'); await trouver_et_cliquer('[data-act="prono"]'); await pg.wait_for_timeout(1500); verifier('pronostic contre' in (await txt()).lower(), '« Comprendre et améliorer mes chances »')
+        await pg.screenshot(path=SORTIE + '/ecran7b_prono.png'); await clic('[data-act="fermer-prono"]')
+        for v in ('ligue', 'legendes', 'club', 'gazette', 'vestiaire'):
+            await clic('[data-act="vue"][data-v="%s"]' % v)
+        # sponsor, depuis l'écran Club du solo ; le serveur l'enregistre
+        await clic('[data-act="vue"][data-v="club"]'); await trouver_et_cliquer('[data-act="sponsor"]')
+        if await pg.locator('[data-act="oui"]').count(): await clic('[data-act="oui"]'); await pg.wait_for_timeout(400)
+        verifier(await pg.evaluate("!!__B.etats[LG.L.id].etat.teams[0].gest.sponsor") and await pg.evaluate("!!S.sponsor"), 'sponsor signé auprès du serveur')
+        or0 = await pg.evaluate("S.teams[0].or"); await trouver_et_cliquer('[data-act="stade"]')
+        if await pg.locator('[data-act="oui"]').count(): await clic('[data-act="oui"]'); await pg.wait_for_timeout(400)
+        verifier(await pg.evaluate("S.teams[0].or") < or0 and await pg.evaluate("__B.etats[LG.L.id].etat.teams[0].or") == await pg.evaluate("S.teams[0].or"), 'amélioration du stade payée côté serveur')
+        # --- mercato : l'onglet Marché du solo montre les enchères
+        await clic('[data-act="vue"][data-v="marche"]'); verifier('mercato ouvert' in (await txt()).lower(), 'mercato ouvert dans l\'onglet Marché')
         mid = await pg.evaluate("LG.vue.marche[0].id"); mpl = await pg.evaluate("LG.vue.marche[0].plancher")
         verifier(await pg.evaluate("LG.vue.marche.every(p=>p.f===undefined&&p.vu)"), 'au marché : seulement les notes vues par mon chineur')
         await pg.fill('[data-mise="%d"]' % mid, str(mpl + 3)); await clic('[data-l="miser"][data-id="%d"]' % mid)
-        plein = await pg.evaluate("LG.vue.club.joueurs.length>=8")
-        verifier(('Effectif complet' in await txt()) if plein else await pg.evaluate("__B.encheres.some(e=>e.tour==='mercato-1'&&e.club_index===0)"), 'mise de mercato déposée (ou refusée car effectif complet)')
+        refus = await pg.evaluate("message&&message.titre")
+        verifier(refus in ('Effectif complet', 'Mise trop haute') or await pg.evaluate("__B.encheres.some(e=>e.tour==='mercato-1'&&e.club_index===0)"), 'mise de mercato déposée, ou refusée pour une bonne raison (%s)' % refus)
         await pg.keyboard.press('Escape'); await pg.wait_for_timeout(200)
         await pg.screenshot(path=SORTIE + '/ecran8_mercato.png')
+        await clic('[data-l="sortirClub"]'); verifier(not await solo() and 'classement' in (await txt()).lower(), 'retour aux écrans de la ligue')
         # --- le créateur envoie un cadeau à son propre club, puis un joueur sur mesure
         await clic('[data-l="onglet"][data-v="commissaire"]'); verifier('Créateur' in await txt() and 'Rythme de la ligue' in await txt(), 'rythme et créateur affichés')
         await pg.fill('[data-hap="po"]', '40'); await pg.fill('#lg-hap-texte', 'Merci pour tes retours.'); await clic('[data-l="happening"]'); await pg.wait_for_timeout(400); await pg.keyboard.press('Escape'); await pg.wait_for_timeout(200)
-        await clic('[data-l="onglet"][data-v="club"]'); verifier('Merci pour tes retours.' in await txt(), 'le don attend dans Mon club')
-        av = await pg.evaluate("LG.vue.club.or"); await clic('[data-l="evt"][data-v="1"]'); await pg.wait_for_timeout(500); await pg.keyboard.press('Escape'); await pg.wait_for_timeout(200)
-        verifier(await pg.evaluate("LG.vue.club.or") == av + 40, 'don encaissé')
-        await clic('[data-l="onglet"][data-v="commissaire"]'); await pg.select_option('[data-sel="hap:k"]', 'joueur'); await pg.wait_for_timeout(200)
+        await clic('[data-l="onglet"][data-v="club"]'); await pg.wait_for_timeout(500); verifier('Merci pour tes retours.' in await txt(), 'le don attend dans le vestiaire, rubrique Rebondissement')
+        av = await pg.evaluate("S.teams[0].or"); await clic('[data-act="evt"][data-v="1"]'); await pg.wait_for_timeout(600); await pg.keyboard.press('Escape'); await pg.wait_for_timeout(200)
+        verifier(await pg.evaluate("S.teams[0].or") == av + 40, 'don encaissé')
+        await clic('[data-l="sortirClub"]'); await clic('[data-l="onglet"][data-v="commissaire"]'); await pg.select_option('[data-sel="hap:k"]', 'joueur'); await pg.wait_for_timeout(200)
         await pg.fill('#lg-hap-nom', 'Hugo le Terrible'); await pg.fill('[data-hap="f"]', '90'); await clic('[data-l="happening"]'); await pg.wait_for_timeout(400); await pg.keyboard.press('Escape'); await pg.wait_for_timeout(200)
-        await clic('[data-l="onglet"][data-v="club"]'); verifier('Hugo le Terrible' in await txt(), 'le joueur sur mesure frappe à la porte')
-        await pg.screenshot(path=SORTIE + '/ecran9_happening.png')
+        await clic('[data-l="onglet"][data-v="club"]'); await pg.wait_for_timeout(500); verifier('Hugo le Terrible' in await txt(), 'le joueur sur mesure frappe à la porte')
+        await pg.screenshot(path=SORTIE + '/ecran9_happening.png'); await clic('[data-l="sortirClub"]')
         await clic('[data-l="onglet"][data-v="commissaire"]'); await pg.select_option('[data-sel="reg:heure"]', '20'); await pg.wait_for_timeout(400)
         verifier(await pg.evaluate("__B.etats[LG.L.id].etat.reglages.heure") == 20, 'heure du coup d\'envoi réglée à 20 h')
         # pause / reprise, puis une journée complète en deux clics
@@ -138,13 +153,15 @@ async def main():
             await clic('[data-l="lancer"]'); await clic('[data-act="oui"]'); await pg.wait_for_timeout(600)
         await clic('[data-l="onglet"][data-v="ligue"]'); verifier('journée 2 sur 10' in await txt(), 'une journée jouée')
         verifier('Derniers résultats' in await txt(), 'résultats de la journée sur l\'accueil de la ligue')
-        await clic('[data-l="onglet"][data-v="gazette"]'); t = await txt()
-        verifier('Tous les matchs de la journée 1' in t.replace('TOUS LES MATCHS DE LA JOURNÉE 1', 'Tous les matchs de la journée 1') and await pg.locator('article.gazette').count() == 1, 'gazette de ligue : mon numéro et tous les matchs')
-        n = await pg.locator('[data-l="pageG"]').count()
+        await clic('[data-l="onglet"][data-v="gazette"]'); await pg.wait_for_timeout(600)
+        verifier(await solo() and await pg.locator('article.gazette').count() == 1 and await pg.evaluate("S.gazettes.length") == 1, 'la gazette du solo, avec mon numéro de ligue')
+        n = await pg.locator('.sommaire [data-act="pageG"]').count()
         for k in range(n):
-            await clic('[data-l="pageG"][data-v="%d"]' % k)
-        await pg.screenshot(path=SORTIE + '/ecran10_gazette.png', full_page=True)
-        await clic('[data-l="onglet"][data-v="mercato"]'); verifier('Dernier mercato' in await txt() or 'Mercato ouvert' in await txt(), 'mercato suivant')
+            await clic('.sommaire [data-act="pageG"][data-v="%d"]' % k)
+        verifier(n >= 4, 'toutes les pages de la gazette se feuillettent (%d pages)' % n)
+        await pg.screenshot(path=SORTIE + '/ecran10_gazette.png')
+        await clic('[data-act="vue"][data-v="vestiaire"]'); verifier(await pg.locator('.vos-chances').count() == 1, 'vestiaire de la journée suivante')
+        await clic('[data-act="vue"][data-v="ligue"]'); await clic('[data-act="vue"][data-v="marche"]'); await clic('[data-l="sortirClub"]')
         await clic('[data-l="onglet"][data-v="ligue"]')
         # exclusion puis code de reprise
         await clic('[data-l="onglet"][data-v="membres"]'); await clic('[data-l="exclure"][data-id="2"]'); await clic('[data-act="oui"]'); await pg.wait_for_timeout(500)
