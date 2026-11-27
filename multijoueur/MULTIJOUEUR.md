@@ -20,14 +20,19 @@
    - **Gazette** : un numéro par club (sa propre une), plus les articles de tous les matchs, avec les portraits des hommes et femmes du match.
 5. **Commissaire** : boutons « Lancer la journée maintenant », « Pause », « Reprendre », et réglage du rythme.
 
+## Taille de la ligue
+- 6 à 8 amis pour commencer, 10 au maximum. Chaque ami a son club ; si le nombre est impair, l'ordinateur prend une place pour que chacun joue à chaque journée.
+- Le moteur doit donc gérer une ligue de 6 à 10 clubs (aujourd'hui : 6 en solo) : calendrier, classement, coupe (tableau à 8 ou 16 avec invités), primes.
+- Saison en matchs aller simple (7 à 9 journées) ou aller-retour (14 à 18 journées), au choix du commissaire.
+
 ## Rythme (réglable par ligue)
 | Réglage | Valeur de départ proposée |
 |---|---|
-| Durée de la draft | 24 h |
-| Jours entre deux matchs | 2 |
-| Heure des matchs | 21 h (heure de Paris) |
-| Clôture du mercato | 24 h avant le match |
-| Durée de l'intersaison | 48 h |
+| Durée de la draft | 48 h (le temps que tout le monde passe) |
+| Matchs | 3 par semaine : lundi, mercredi et vendredi à 21 h (heure de Paris) |
+| Clôture du mercato | la veille du match à 21 h |
+| Saison | aller-retour : 14 journées à 8 clubs, soit environ 5 semaines |
+| Intersaison | 3 jours |
 
 ## Données (Supabase, voir `supabase.sql`)
 - `ligues` : réglages, phase, **état public** du jeu (classement, effectifs, calendrier…), prochaine échéance.

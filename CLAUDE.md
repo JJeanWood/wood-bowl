@@ -30,7 +30,7 @@ Décisions prises avec Juju :
 - matchs lancés automatiquement à heure fixe par le serveur, plus un bouton « Lancer la journée » et « Pause » pour le commissaire (Juju) ;
 - pilote automatique pour les absents ; notifications web push ;
 - échanges entre amis, courrier des lecteurs dans la gazette.
-Restent à fixer : nombre d'amis, rythme exact.
+Taille : 6 à 8 amis au départ, 10 au maximum (ligue de 6 à 10 clubs, l'ordinateur complète si impair). Rythme de départ proposé : voir MULTIJOUEUR.md.
 
 Plan détaillé, base de données et suivi du chantier : `multijoueur/MULTIJOUEUR.md` et `multijoueur/supabase.sql`.
 Le moteur est déterministe avec `R=graine(seed)` ; `estH(T)` distingue un club humain (`T.humain`) d'un club de l'ordinateur.
