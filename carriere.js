@@ -121,7 +121,7 @@ function vieillir(S){
         S.fame.push(e);bilan.retraites.push({nom:p.nom,age:p.age,buts:p.buts,matchs:p.matchs});T.pop=clamp(T.pop+2,5,100);
       }
     });
-    if(T.id>0){const D=divDe(S);while(T.joueurs.length<6){const n=nouveauJoueur(S,pick(CLUBS_IA[T.id-1].races),ri(D.ia[0]-2,D.ia[1]-2),{poste:postesManquants(T)[0]||null,jeune:true});T.joueurs.push(n);varierTetes(T,n)}}
+    if(!estH(T)){const D=divDe(S);while(T.joueurs.length<6){const n=nouveauJoueur(S,pick(CLUBS_IA[T.id-1].races),ri(D.ia[0]-2,D.ia[1]-2),{poste:postesManquants(T)[0]||null,jeune:true});T.joueurs.push(n);varierTetes(T,n)}}
   });
   return bilan;
 }
@@ -222,7 +222,7 @@ function jouerCoupe(S,jour,mesOpts){
   if(rot){const d=moi.joueurs.filter(dispo);const bancs=d.filter(p=>!p.titulaire);if(bancs.length){d.forEach(p=>p.titulaire=false);bancs.forEach(p=>p.titulaire=true)}}
   for(let i=0;i<paires.length;i+=2){
     const A=equipeCoupe(S,paires[i]),B=equipeCoupe(S,paires[i+1]);
-    [A,B].forEach(T=>{if(T.id!==0)choisirTitulaires(T)});
+    [A,B].forEach(T=>{if(!estH(T))choisirTitulaires(T)});
     const o=[A.id===0?Object.assign({},mesOpts,{pot:false,marque:null,pression:true}):optsCoupe(A),B.id===0?Object.assign({},mesOpts,{pot:false,marque:null,pression:true}):optsCoupe(B)];
     let res=simMatch(S,A,B,o);let tab=null;
     let g=res.score[0]>res.score[1]?0:res.score[0]<res.score[1]?1:-1;
@@ -260,6 +260,6 @@ function jouerCoupe(S,jour,mesOpts){
       const cap=moi.joueurs.slice().sort((a,b)=>b.sb-a.sb||b.matchs-a.matchs)[0]||{};S.fame.push({titre:'Coupe du Gourdin',grand:true,nom:cap.nom||moi.nom,race:cap.race||'humain',tete:cap.tete,poste:cap.poste||'',club:moi.court,couleur:moi.couleur,moi:true,saison:S.saison,detail:'capitaine de l\'équipe victorieuse de la Coupe du Gourdin'})}
     fin={vainqueur:W.nom,moi:W.id===0};
   }
-  S.teams.forEach(T=>{if(T.id>0)choisirTitulaires(T)});
+  S.teams.forEach(T=>{if(!estH(T)&&!T.invite)choisirTitulaires(T)});
   return{tour:t.nom,matchs,mien,gain,libelle:'Coupe du Gourdin : '+(n===2?'victoire finale':'qualification'),fin,elimine:!!(mien&&!mien.gagne)};
 }

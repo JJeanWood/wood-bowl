@@ -1,6 +1,8 @@
 'use strict';
 /* ================= WOOD BOWL · MOTEUR (aucun accès à la page) ================= */
 let R=Math.random;
+/* club dirigé par un humain (en solo : le club 0 ; en ligue : chaque ami) */
+const estH=T=>!!T&&(T.humain===true||(T.humain===undefined&&T.id===0));
 const ri=(a,b)=>a+Math.floor(R()*(b-a+1));
 const pick=a=>a[Math.floor(R()*a.length)];
 const U=(a,b)=>a+R()*(b-a);
@@ -209,7 +211,7 @@ function onzeDe(T){
   const d=T.joueurs.filter(dispo);
   let tit=d.filter(p=>p.titulaire).sort((a,b)=>puissance(b)-puissance(a)).slice(0,5);
   let reste=d.filter(p=>!tit.includes(p));
-  if(T.id!==0)reste.sort((a,b)=>puissance(b)-puissance(a));
+  if(!estH(T))reste.sort((a,b)=>puissance(b)-puissance(a));
   /* on complète d'abord avec ceux qu'on n'a pas volontairement mis au banc */
   else reste.sort((a,b)=>(a.auBanc?1:0)-(b.auBanc?1:0));
   while(tit.length<5&&reste.length)tit.push(reste.shift());
@@ -335,7 +337,7 @@ function entrainer(T){
     p.gain=null;
     p.forme=clamp(p.forme+10+rec,5,100);
     if(p.blesse>0){if(gue&&R()<gue){p.blesse--;p.soigne=true}return}
-    const e=T.id===0?p.entr:(p.forme<58?'repos':iaEntrPour(p));
+    const e=estH(T)?p.entr:(p.forme<58?'repos':iaEntrPour(p));
     if(e==='repos'||!e){p.forme=clamp(p.forme+18,5,100);return}
     p.forme=clamp(p.forme-fat,5,100);
     const reste=p.cap[e]-p[e];
@@ -345,7 +347,7 @@ function entrainer(T){
     gain=Math.min(gain,reste);
     const pa=progresAge(T,p,gain,reste);gain=pa.gain;
     p[e]+=gain;p.gain={k:e,n:gain};if(pa.mentor)p.gain.mentor=pa.mentor;
-    if(T.id===0&&p[e]>=p.cap[e]){const n=conseilEntr(p);p.gain.max={de:e,vers:n};p.entr=n}
+    if(estH(T)&&p[e]>=p.cap[e]){const n=conseilEntr(p);p.gain.max={de:e,vers:n};p.entr=n}
     if(e==='sp'&&p.race==='humain'){let n=0;STATS.forEach(k=>{if(p[k]<p.cap[k]&&R()<.35+p.sp/200){p[k]++;n++}});if(n)p.gain.tout=n}
   });
 }
@@ -478,7 +480,7 @@ function simMatch(S,TA,TB,opts){
     if(op.ordres)Object.entries(op.ordres).forEach(([id,x])=>{const p=c.terrain.find(q=>q.id===+id);if(!p||!x)return;
       if(x.k==='cible'&&o.terrain.some(q=>q.id===x.id))c.ordres[p.id]=x;
       if(x.k==='garde'&&p.poste==='Cogneur'&&c.terrain.some(q=>q.id===x.id&&q!==p))c.ordres[p.id]=x});
-    else if(c.T.id!==0||op.ordresAuto){/* l'ordinateur donne parfois des ordres à ses cogneurs */
+    else if(!estH(c.T)||op.ordresAuto){/* l'ordinateur donne parfois des ordres à ses cogneurs */
       const star=o.terrain.filter(q=>!q.temp).sort((a,b)=>puissance(b)-puissance(a))[0],maStar=c.terrain.filter(q=>!q.temp&&q.poste!=='Cogneur').sort((a,b)=>puissance(b)-puissance(a))[0];
       c.terrain.filter(p=>!p.temp&&(p.poste==='Cogneur'||(p.race==='elfenoir'&&(p.sp||0)>=20))).forEach(p=>{const r=R();
         if(star&&r<.22)c.ordres[p.id]={k:'cible',id:star.id};else if(maStar&&p.poste==='Cogneur'&&r<.36)c.ordres[p.id]={k:'garde',id:maStar.id}})}
@@ -703,7 +705,7 @@ function jouerJournee(S){
       if(p.frais2)delete p.frais2;else if(p.suspendu>0)p.suspendu--;
       delete p.soigne;
     });
-    if(T.id>0){while(T.joueurs.length<6){const manque=postesManquants(T);const n=jeuneDuPays(S,pick(CLUBS_IA[T.id-1].races));if(manque.length){n.poste=manque[0]}T.joueurs.push(n);varierTetes(T,n)}}
+    if(!estH(T)){while(T.joueurs.length<6){const manque=postesManquants(T);const n=jeuneDuPays(S,pick(CLUBS_IA[T.id-1].races));if(manque.length){n.poste=manque[0]}T.joueurs.push(n);varierTetes(T,n)}}
     else T.joueurs.forEach(p=>{
       if(p.blesse>0){p.titulaire=false;infirmerie.push(p.nom+' : blessé, encore '+pl(p.blesse,'match'))}
       else if(p.suspendu){p.titulaire=false;infirmerie.push(p.nom+' : suspendu au prochain match')}
@@ -844,7 +846,7 @@ function passerIntersaison(S){
   moi.joueurs.forEach(p=>{const n=p.jeune&&p.saisons===0?Math.min(salaire(p),3):salaire(p);if(n!==p.sal){hausses.push({nom:p.nom,avant:p.sal,apres:n})}p.sal=n;p.saisons++;delete p.gratuit});
   S.teams.forEach(T=>{
     T.pop=Math.round(T.pop+(40-T.pop)*.2);
-    if(T.id>0){
+    if(!estH(T)){
       T.joueurs.forEach(p=>{p.sal=salaire(p);p.saisons++});
       if(T.joueurs.length>6&&R()<.6){const p=T.joueurs.slice().sort((a,b)=>valeur(a)-valeur(b))[0];T.joueurs=T.joueurs.filter(x=>x!==p)}
       while(T.joueurs.length<7){const n=nouveauJoueur(S,pick(CLUBS_IA[T.id-1].races),ri(divDe(S).ia[0]-1,divDe(S).ia[1]-1),{poste:postesManquants(T)[0]||null,jeune:true});T.joueurs.push(n);varierTetes(T,n)}

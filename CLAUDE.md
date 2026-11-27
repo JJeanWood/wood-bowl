@@ -32,6 +32,10 @@ Décisions prises avec Juju :
 - échanges entre amis, courrier des lecteurs dans la gazette.
 Restent à fixer : nombre d'amis, rythme exact.
 
+Plan détaillé, base de données et suivi du chantier : `multijoueur/MULTIJOUEUR.md` et `multijoueur/supabase.sql`.
+Le moteur est déterministe avec `R=graine(seed)` ; `estH(T)` distingue un club humain (`T.humain`) d'un club de l'ordinateur.
+Test de non-régression du solo : `node multijoueur/test_non_regression.js <nouveau> <ancien>` (mêmes graines, même résultat).
+
 ## Vérifier avant de livrer
 - Tests moteur en Node (concaténer moteur.js, legendes.js, carriere.js, gazette.js, gazette2.js dans `new Function`) : simuler plusieurs saisons sans erreur.
 - Tests d'interface avec Playwright sur un serveur local (`python3 -m http.server`).
