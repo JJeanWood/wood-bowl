@@ -30,6 +30,7 @@ Décisions prises avec Juju :
 - matchs lancés automatiquement à heure fixe par le serveur, plus un bouton « Lancer la journée » et « Pause » pour le commissaire (Juju) ;
 - pilote automatique pour les absents ; notifications web push ;
 - échanges entre amis, courrier des lecteurs dans la gazette.
+Pas de légendes au départ (elles arrivent plus tard, par surprise) ; stats cachées toujours cachées en multi ; une seule division ; formats ligue / tournoi éclair / grand événement (chacun avec son club, renforts « de passage » qui repartent à la fin).
 Taille : 6 à 8 amis au départ, 10 au maximum (ligue de 6 à 10 clubs, l'ordinateur complète si impair). Rythme de départ proposé : voir MULTIJOUEUR.md.
 
 Plan détaillé, base de données et suivi du chantier : `multijoueur/MULTIJOUEUR.md` et `multijoueur/supabase.sql`.

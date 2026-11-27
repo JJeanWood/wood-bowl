@@ -20,6 +20,23 @@
    - **Gazette** : un numéro par club (sa propre une), plus les articles de tous les matchs, avec les portraits des hommes et femmes du match.
 5. **Commissaire** : boutons « Lancer la journée maintenant », « Pause », « Reprendre », et réglage du rythme.
 
+## Décisions de jeu (validées par Juju)
+- **Pas de légendes au départ** : aucune dans la draft. Elles apparaissent plus tard, rarement, au mercato, pour créer la surprise.
+- **Stats cachées** (mental, régularité, robustesse) : toujours cachées en multijoueur (le cadre « brume » reste visible). On pourra un jour prévoir une façon rare de les dévoiler.
+- **Une seule division** en multijoueur pour commencer. Poules ou divisions plus tard, si on est plus nombreux.
+- **Ordres aux joueurs** (cogneurs : cibler ou protéger ; elfes noirs assassins : choisir leur victime) : font partie des ordres envoyés avant chaque match.
+
+## Formats de partie (même moteur, minuteries différentes)
+| Format | Durée | Rythme |
+|---|---|---|
+| Ligue | 3 à 5 semaines | 3 matchs par semaine à 21 h, mercato la veille |
+| Tournoi éclair | une soirée (2 à 3 h) | un match toutes les 10 à 15 min, poules puis élimination directe |
+| Grand événement (Coupe du Monde, Jeux du Bol…) | un week-end ou une soirée | voir ci-dessous |
+
+**Grands événements** : chacun joue avec **son propre club**, celui de la ligue. Au début de l'événement, des joueurs « de passage » se présentent (renforts proposés à tous, par exemple aux enchères rapides). Ils jouent l'événement puis **repartent à la fin** : ils ne restent jamais dans l'équipe multijoueur.
+Pas d'import de joueurs depuis les parties solo.
+En soirée, tout le monde est présent : pas de pilote automatique ni de notifications nécessaires. Le serveur vérifie les échéances chaque minute, et le commissaire peut lancer chaque tour à la main.
+
 ## Taille de la ligue
 - 6 à 8 amis pour commencer, 10 au maximum. Chaque ami a son club ; si le nombre est impair, l'ordinateur prend une place pour que chacun joue à chaque journée.
 - Le moteur doit donc gérer une ligue de 6 à 10 clubs (aujourd'hui : 6 en solo) : calendrier, classement, coupe (tableau à 8 ou 16 avec invités), primes.
