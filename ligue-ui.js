@@ -273,6 +273,25 @@ function vueSaison(){
   return h;
 }
 const sel=(cle,options,val,extra)=>'<select data-sel="'+cle+'"'+(extra||'')+'>'+options.map(([v,l])=>'<option value="'+esc(String(v))+'"'+(String(v)===String(val===null||val===undefined?'':val)?' selected':'')+'>'+esc(l)+'</option>').join('')+'</select>';
+/* « Vos chances », comme en solo : on rejoue le match quelques centaines de fois avec ce que l'on voit.
+   En ligue c'est une estimation : le profil caché des joueurs et les ordres de l'adversaire ne sont pas connus de l'appli. */
+let chancesCache={cle:'',r:null};
+function chancesLigue(pa){
+  const L=LG.L,e=LG.ed;if(!pa||!e)return null;
+  const cle=L.id+':'+L.version+':'+JSON.stringify(e);if(chancesCache.cle===cle)return chancesCache.r;
+  let r=null;
+  try{
+    const Sx=JSON.parse(JSON.stringify(L.etat)),T=equipeEditee();Sx.multi=true;Sx.opts={};
+    T.gest=T.gest||{};T.gest.choix={consigne:e.consigne,tactique:e.tactique,pot:e.pot,marque:e.marque,ordres:e.ordres};Sx.teams[T.id]=T;
+    r=pronostic(Sx,T.gest.choix,300,(A,B)=>{if(estH(B))choisirTitulaires(B)},T);
+  }catch(err){r=null}
+  chancesCache={cle,r};return r;
+}
+function blocChancesLigue(pa){
+  const r=chancesLigue(pa);if(!r)return'';
+  return'<div class="vos-chances"><div class="t-ch"><span class="t">Vos chances</span><span class="score-moy">Score moyen '+fr(r.bp.toFixed(1))+' – '+fr(r.bc.toFixed(1))+'</span></div>'+barreChances(r)
+    +'<p class="effet">Estimation recalculée à chaque réglage. '+(pa.adv.humain?'Les ordres de votre adversaire restent secrets : on suppose qu\'il joue sa meilleure équipe, sans consigne particulière.':'')+'</p></div>';
+}
 /* les cartes de joueurs du solo, avec leurs boutons branchés sur la ligue */
 const carteSolo=(p,T,rang,nb,ent)=>carteJoueur(p,T,rang,nb,ent).replace(/data-act="(titulaire|monter|descendre|entr)"/g,'data-l="$1"').replace(/data-act="fiche"/g,'data-l="rien"');
 function vueMonClub(){
@@ -292,7 +311,7 @@ function vueMonClub(){
       +'<p><b>'+esc(adv.nom)+'</b>'+(adv.humain?', le club de '+esc(adv.pseudo||'un ami'):', club de l\'ordinateur')+'. '+(pa.dom?'Vous recevez.':'Vous vous déplacez.')+' Coup d\'envoi : '+quand((E.horaires||{}).match)+'.</p>'
       +(r?'<p class="note" style="margin-top:6px"><b>Votre stratège :</b> consigne conseillée <b>'+NOM_CONSIGNE[r.conseil]+'</b>'+(r.prediction?' ; il les attend en consigne '+NOM_CONSIGNE[r.prediction]:'')+(r.tacConseil?' ; plan conseillé : '+TACTIQUES[r.tacConseil].nom.toLowerCase():'')+(men?' ; joueur à surveiller : '+esc(men.nom):'')+'.</p>':'')+'</div></section>';
     /* Vos ordres : exactement les mêmes réglages qu'en solo */
-    h+='<section class="bloc"><h2>Vos ordres</h2><div class="panneau choix">'
+    h+='<section class="bloc"><h2>Vos ordres</h2><div class="panneau choix">'+blocChancesLigue(pa)
       +'<div><span class="t">Consigne de match</span><div class="seg">'+['prudent','normal','brutal'].map(k=>'<button data-l="consigne" data-v="'+k+'" aria-pressed="'+(e.consigne===k)+'">'+k.charAt(0).toUpperCase()+k.slice(1)+(r&&r.conseil===k?' ★':'')+'</button>').join('')+'</div><p class="effet">'+CONSIGNES[e.consigne]+(r?' ★ = conseil du stratège.':'')+'</p></div>'
       +'<div><span class="t">Plan de jeu</span><div class="seg tactiques">'+TACTIQUE_IDS.map(k=>'<button data-l="tactique" data-v="'+k+'" aria-pressed="'+(tac===k)+'" title="'+esc(TACTIQUES[k].desc)+'">'+TACTIQUES[k].court+(r&&r.tacConseil===k?' ★':'')+'</button>').join('')+'</div><p class="effet">'+esc(TACTIQUES[tac].desc)+(TACTIQUES[tac].bat?' Contre le '+TACTIQUES[TACTIQUES[tac].bat].nom.toLowerCase()+', mais se fait contrer par le '+TACTIQUES[contreDe(tac)].nom.toLowerCase()+'.':'')+'</p>'
         +'<details class="regles"><summary>Qui bat qui ?</summary><p class="note" style="margin:6px 0 0">Chaque plan en contre un autre, et celui qui contre gagne +7 % en attaque et en défense. Le cycle : Jeu au sol → bat la Contre-attaque → qui bat le Pressing → qui bat le Jeu aérien → qui bat le Mur défensif → qui bat le Jeu au sol. « Équilibré » ne gagne ni ne perd ce duel.</p></details></div>'

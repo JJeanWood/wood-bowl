@@ -96,6 +96,8 @@ async def main():
         verifier(await pg.evaluate("__B.ordres.length") == 1, 'ouvrir la ligue vaut présence : des ordres sont déposés')
         await clic('[data-l="onglet"][data-v="club"]'); t = await txt()
         verifier('à choisir pour la saison' in t.lower() and 'prochain match' in t.lower() and 'vos ordres' in t.lower() and 'plan de jeu' in t.lower() and 'composition automatique' in t.lower(), 'écran Mon club complet, rangé comme en solo')
+        c1 = await pg.locator('.vos-chances').count(); print('   chances affichées :', (await pg.inner_text('.legende-ch')).replace(chr(10), ' '))
+        verifier(c1 == 1 and 'score moyen' in (await txt()).lower(), '« Vos chances » affiché comme en solo')
         await clic('[data-l="sponsor"]'); await pg.wait_for_timeout(400); verifier('à choisir pour la saison' not in (await txt()).lower(), 'sponsor signé')
         await clic('[data-l="consigne"][data-v="brutal"]')
         tit = await pg.evaluate("LG.ed.tit.slice()"); await clic('[data-l="titulaire"][data-id="%d"]' % tit[0])
