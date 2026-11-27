@@ -298,7 +298,7 @@ function vuePour(S,id){
   if(V.draft&&V.draft.vivier)V.draft.vivier.forEach(cacher);
   V.marche=(V.marche||[]).map(p=>{
     const vu=(p.vuPar&&p.vuPar[id])||null;cacher(p);
-    const q={id:p.id,nom:p.nom,sexe:p.sexe,race:p.race,poste:p.poste,trait:p.trait,tete:p.tete,age:p.age,jeune:p.jeune,leg:p.leg,pv:p.pv,brume:p.brume,sp:p.sp,plancher:p.plancher,vu};
+    const q={id:p.id,nom:p.nom,sexe:p.sexe,race:p.race,poste:p.poste,trait:p.trait,tete:p.tete,age:p.age,jeune:p.jeune,leg:p.leg,pv:p.pv,brume:p.brume,sp:p.sp,forme:p.forme,plancher:p.plancher,vu};
     if(p.leg){q.f=p.f;q.v=p.v;q.t=p.t} /* une légende est connue de tous */
     return q;
   });

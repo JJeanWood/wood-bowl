@@ -9,7 +9,9 @@ const COULEURS=['#2f5fa8','#c8402c','#2f6b4a','#c08a1e','#6f2f6c','#e0782a','#1f
 const CLE_CODE='woodbowl-code';
 const LG={etat:'debut',erreur:null,uid:null,code:null,ligues:null,ecran:'accueil',onglet:'ligue',occupe:false,
   form:{nomLigue:'',pseudo:'',club:'',couleur:COULEURS[0],peuple:'humain',code:'',codeSecret:''},
-  id:null,L:null,clubs:[],vue:null,mises:{},saisie:{},filtre:'tous',montrerCode:false,signature:''};
+  id:null,L:null,clubs:[],vue:null,mises:{},saisie:{},filtre:'tous',montrerCode:false,signature:'',
+  ordres:null,ed:null,edCle:'',gaz:null,pageG:0,statutOrdres:'',
+  hap:{club:'',k:'don',po:'30',titre:'',texte:'',nom:'',sexe:'m',race:'humain',poste:'Coureur',f:'60',v:'60',t:'60',sp:'30',prime:'0'}};
 window.LG=LG;
 
 /* ---------- Accès au serveur ---------- */
@@ -39,10 +41,17 @@ const vraiAPI={
     const L=l.data,clubs=c.data||[],moi=clubs.find(x=>x.user_id===uid)||null;const mises={};
     const tour=L.etat&&L.etat.encheres&&L.etat.encheres.tour;
     if(tour&&moi){const e=await sb.from('encheres').select('joueur_id,montant').eq('ligue_id',id).eq('club_index',moi.club_index).eq('tour',tour);(e.data||[]).forEach(x=>{mises[x.joueur_id]=x.montant})}
+    let ordres=null,gaz=null;
+    if(moi&&L.phase!=='inscriptions'){
+      const o=await sb.from('ordres').select('contenu').eq('ligue_id',id).eq('club_index',moi.club_index).eq('journee',L.version+1).maybeSingle();ordres=o.data?o.data.contenu:null;
+      const g=await sb.from('gazettes').select('club_index,saison,journee,contenu').eq('ligue_id',id).in('club_index',[moi.club_index,-1]).order('saison',{ascending:false}).order('journee',{ascending:false}).limit(2);
+      const rows=g.data||[];if(rows.length){const m=rows.find(r=>r.club_index>=0),c=rows.find(r=>r.club_index===-1);gaz={mienne:m?m.contenu:null,commune:c?c.contenu:null}}
+    }
     sb.rpc('passage',{l:id}).then(()=>{},()=>{});
-    return{L,clubs,vue:v.data?v.data.vue:null,mises};
+    return{L,clubs,vue:v.data?v.data.vue:null,mises,ordres,gaz};
   },
   async miser(id,club,tour,joueur,montant){const r=await sb.from('encheres').upsert({ligue_id:id,club_index:club,tour,joueur_id:joueur,montant,maj:new Date().toISOString()});return r.error?{erreur:'La mise n\'a pas été enregistrée (le tour est peut-être clos).'}:{ok:true}},
+  async envoyerOrdres(id,club,journee,contenu){const r=await sb.from('ordres').upsert({ligue_id:id,club_index:club,journee,contenu,maj:new Date().toISOString()});return r.error?{erreur:'Les ordres n\'ont pas été enregistrés.'}:{ok:true}},
   async retirer(id,club,tour,joueur){const r=await sb.from('encheres').delete().eq('ligue_id',id).eq('club_index',club).eq('tour',tour).eq('joueur_id',joueur);return r.error?{erreur:'Impossible de retirer la mise.'}:{ok:true}}
 };
 const API=window.__API_LIGUE||vraiAPI;
@@ -64,8 +73,8 @@ async function connecter(){
 function redessiner(){if(!S&&ecran==='multi')rendre()}
 async function recharger(silencieux){
   if(!LG.id)return;
-  try{const d=await API.charger(LG.id,LG.uid);const sig=JSON.stringify([d.L.phase,d.L.etape,d.L.echeance,d.L.version,d.clubs,d.mises,d.vue&&d.vue.club&&[d.vue.club.or,d.vue.club.joueurs.length],d.L.etat&&d.L.etat.draft&&d.L.etat.draft.vivier.length]);
-    const change=sig!==LG.signature;Object.assign(LG,d);LG.signature=sig;
+  try{const d=await API.charger(LG.id,LG.uid);const sig=JSON.stringify([d.L.phase,d.L.etape,d.L.echeance,d.L.version,d.clubs,d.mises,d.vue&&d.vue.club&&[d.vue.club.or,d.vue.club.joueurs.length],d.L.etat&&d.L.etat.draft&&d.L.etat.draft.vivier.length,d.vue&&d.vue.club&&d.vue.club.gest&&[d.vue.club.gest.evt&&d.vue.club.gest.evt.titre,d.vue.club.gest.sponsor,d.vue.club.staff,d.vue.club.stade],d.vue&&d.vue.marche&&d.vue.marche.length,d.gaz&&d.gaz.commune&&[d.gaz.commune.saison,d.gaz.commune.jour]]);
+    const change=sig!==LG.signature;Object.assign(LG,d);LG.signature=sig;preparerOrdres();
     if(!silencieux||(change&&!saisieEnCours()))redessiner();
   }catch(e){if(!silencieux){informer('Oups',String(e.message||e));redessiner()}}
 }
@@ -133,7 +142,11 @@ function vueRejoindre(){
 /* ---------- Dans une ligue ---------- */
 function vueLigueOuverte(){
   const L=LG.L;if(!L)return'<section class="ecran-menu">'+retour('Ligue','accueil')+'<div class="panneau"><p style="margin:0">Chargement…</p></div></section>';
-  const onglets=[['ligue',L.phase==='inscriptions'?'Salle d\'attente':L.phase==='draft'||(L.phase==='pause'&&L.etat&&L.etat.draft)?'Draft':'Ligue'],['membres','Membres']];if(estAdjoint())onglets.push(['commissaire','Commissaire']);
+  const enJeu=!!(L.etat&&!L.etat.draft&&L.phase!=='inscriptions');
+  const onglets=[['ligue',L.phase==='inscriptions'?'Salle d\'attente':!enJeu?'Draft':'Ligue']];
+  if(enJeu&&moiClub())onglets.push(['club','Mon club'],['mercato','Mercato'],['gazette','Gazette']);
+  onglets.push(['membres','Membres']);if(estAdjoint())onglets.push(['commissaire','Commissaire']);
+  if(!onglets.some(o=>o[0]===LG.onglet))LG.onglet='ligue';
   let h='<section class="ecran-menu lg">'+retour(L.nom,'accueil')
     +'<div class="sous" role="tablist">'+onglets.map(([k,l])=>'<button role="tab" data-l="onglet" data-v="'+k+'" aria-selected="'+(LG.onglet===k)+'">'+l+'</button>').join('')+'</div>';
   if(L.phase==='pause')h+='<div class="panneau lg-bandeau"><b>Ligue en pause.</b> Le commissaire reprendra quand tout le monde sera prêt.</div>';
@@ -141,7 +154,10 @@ function vueLigueOuverte(){
   else if(LG.onglet==='commissaire'&&estAdjoint())h+=vueCommissaire();
   else if(L.phase==='inscriptions')h+=vueAttente();
   else if(L.etat&&L.etat.draft)h+=vueDraft();
-  else h+=vueSaisonProvisoire();
+  else if(LG.onglet==='club')h+=vueMonClub();
+  else if(LG.onglet==='mercato')h+=vueMercato();
+  else if(LG.onglet==='gazette')h+=vueGazetteLigue();
+  else h+=vueSaison();
   return h+'</section>';
 }
 function vueAttente(){
@@ -180,17 +196,22 @@ function vueCommissaire(){
     else h+='<button class="gros" data-l="lancer"'+(LG.occupe?' disabled':'')+'>'+(etapes[L.phase]||'Passer à l\'étape suivante')+'</button><button class="discret" data-l="pause" style="margin-top:10px">Mettre la ligue en pause</button>';
     h+='<p class="note">Sans rien toucher, tout avance tout seul aux heures prévues. Ces boutons servent à ne pas attendre quand tout le monde est prêt.</p></div>';
   }
-  return h+'<p class="note">Les réglages du rythme et les happenings arrivent dans la prochaine mise à jour.</p>';
+  h+=vueRythme();if(estChef()&&L.phase!=='inscriptions')h+=vueCreateur();
+  return h;
 }
-function carteDraft(p,moi){
+/* une carte de joueur aux enchères (draft : notes exactes ; mercato : notes estimées par votre chineur) */
+function carteEnchere(p,moi){
   const mise=LG.mises[p.id],min=p.plancher||1,val=LG.saisie[p.id]!==undefined?LG.saisie[p.id]:(mise!==undefined?mise:'');
-  return'<div class="carte lg-carte'+(mise!==undefined?' misee':'')+'">'+vignette(p,'#7a6650')+'<div style="min-width:0"><span class="lg-nom">'+esc(p.nom)+'</span>'
-    +'<div class="puces"><span class="puce">'+p.poste+'</span><span class="puce">'+RACES[p.race].nom+'</span>'+(p.trait&&p.trait!=='aucun'?'<span class="puce"'+aide(TRAITS[p.trait].desc)+'>'+TRAITS[p.trait].nom+'</span>':'')+'<span class="puce">'+p.age+' ans</span>'+(p.brume?'<span class="puce"'+aide(CADRES_SPE.brume.desc)+'>Pierre de brume</span>':'')+'</div>'
-    +jaugesJoueur(p)+'<div style="font-size:12.5px;color:var(--creme-sourde);margin-top:3px">Potentiel '+etoiles(etoilesPot(marge(p)))+' · '+salaire(p)+' po par match</div></div>'
+  const vu=p.vu||null,b=vu&&!p.leg?kk(moi,'chin','bruit'):0;
+  const q=vu&&!p.leg?Object.assign({},p,{f:vu.f,v:vu.v,t:vu.t,cap:{f:vu.f,v:vu.v,t:vu.t,sp:p.sp||0}}):p;
+  return'<div class="carte lg-carte'+(mise!==undefined?' misee':'')+(p.leg?' leg':'')+'">'+(p.leg?'<div class="bandeau-leg">✦ Légende de passage au marché ✦</div>':'')+vignette(q,'#7a6650')+'<div style="min-width:0"><span class="lg-nom">'+esc(p.nom)+'</span>'
+    +'<div class="puces"><span class="puce">'+p.poste+'</span><span class="puce">'+RACES[p.race].nom+'</span>'+(p.trait&&p.trait!=='aucun'&&TRAITS[p.trait]?'<span class="puce"'+aide(TRAITS[p.trait].desc)+'>'+TRAITS[p.trait].nom+'</span>':'')+'<span class="puce">'+p.age+' ans</span>'+(p.brume?'<span class="puce"'+aide(CADRES_SPE.brume.desc)+'>Pierre de brume</span>':'')+'</div>'
+    +(vu&&!p.leg?jaugesJoueur(q,vu,b):jaugesJoueur(q))+'<div style="font-size:12.5px;color:var(--creme-sourde);margin-top:3px">Potentiel '+etoiles(etoilesPot(vu&&!p.leg?vu.m:marge(p)))+(b?' (estimé)':'')+' · environ '+salaire(q)+' po par match</div></div>'
     +'<div class="achat"><div style="font-size:12px;color:var(--creme-sourde);text-align:center">mise minimale</div><div class="prix-po num">'+min+' po</div>'
     +'<input type="number" inputmode="numeric" class="lg-mise" data-mise="'+p.id+'" min="'+min+'" max="'+(moi?moi.or:999)+'" value="'+val+'" placeholder="'+min+'" aria-label="Votre mise pour '+esc(p.nom)+'">'
     +'<button class="discret or" data-l="miser" data-id="'+p.id+'">'+(mise!==undefined?'Modifier':'Miser')+'</button>'+(mise!==undefined?'<button class="discret" data-l="retirer" data-id="'+p.id+'">Retirer</button>':'')+'</div></div>';
 }
+const carteDraft=carteEnchere;
 function vueDraft(){
   const L=LG.L,D=L.etat.draft,moi=LG.vue&&LG.vue.club;const nb=Object.keys(LG.mises).length,total=Object.values(LG.mises).reduce((s,x)=>s+x,0);
   let h='<div class="panneau lg-etat"><b>Draft · '+(D.tour===1?'premier tour':'second tour')+'</b><p class="note">Clôture : '+(L.phase==='pause'?'en pause':quand(L.echeance))+'</p>';
@@ -205,15 +226,150 @@ function vueDraft(){
   if(D.ventes&&D.ventes.length)h+='<div class="panneau" style="margin-top:12px"><b>Résultats du premier tour</b><p class="note" style="margin-top:4px">'+D.ventes.map(v=>esc(v.nom)+' → '+esc((L.etat.teams[v.club]||{}).court||'?')+' ('+v.prix+' po)').join('<br>')+'</p></div>';
   return h;
 }
-function vueSaisonProvisoire(){
-  const L=LG.L,E=L.etat,moi=LG.vue&&LG.vue.club,hq=E.horaires||{};
-  let h='<div class="panneau lg-etat"><b>'+(L.phase==='inter'?'Intersaison':'Saison '+E.saison+' · journée '+Math.min(E.jour+1,E.calendrier.length)+' sur '+E.calendrier.length)+'</b><p class="note">'
-    +(L.phase==='inter'?'Reprise : '+quand(hq.reprise):(L.etape==='mercato'?'Clôture du mercato : '+quand(hq.mercato)+'<br>':'')+'Prochain match : '+quand(hq.match))+'</p>'
-    +'<p class="note">La draft est terminée, la saison tourne. Les écrans de saison (vestiaire, mercato, gazette) arrivent dans la prochaine mise à jour : d\'ici là, votre club joue en pilote automatique.</p></div>';
+/* ---------- La saison ---------- */
+const monEquipe=()=>(LG.vue&&LG.vue.club)||null;
+function prochainAdv(){const E=LG.L.etat,moi=monEquipe();if(!moi||E.phase!=='saison'||E.fini||!E.calendrier[E.jour])return null;
+  const m=E.calendrier[E.jour].find(x=>x.includes(moi.id));if(!m)return null;return{adv:E.teams[m[0]===moi.id?m[1]:m[0]],dom:m[0]===moi.id}}
+/* les ordres en cours d'édition : repris des ordres déjà envoyés pour cette journée, sinon de l'état actuel du club */
+function preparerOrdres(){
+  const L=LG.L,moi=monEquipe();if(!L||!moi||!L.etat||L.etat.draft||L.phase==='inscriptions'){LG.ed=null;return}
+  const cle=L.id+':'+(L.version+1);if(LG.ed&&LG.edCle===cle){const ids=moi.joueurs.map(p=>p.id);LG.ed.tit=LG.ed.tit.filter(i=>ids.includes(i));return}
+  const o=LG.ordres,c=(moi.gest&&moi.gest.choix)||{};LG.edCle=cle;LG.statutOrdres=o?'ok':'';
+  LG.ed={tit:o&&Array.isArray(o.titulaires)?o.titulaires.slice():moi.joueurs.filter(p=>p.titulaire).map(p=>p.id),
+    entr:Object.assign(Object.fromEntries(moi.joueurs.map(p=>[p.id,p.entr||'repos'])),(o&&o.entr)||{}),
+    consigne:(o&&o.consigne)||c.consigne||'normal',tactique:(o&&o.tactique)||c.tactique||'equilibre',pot:!!(o&&o.pot),marque:(o&&o.marque)||null,ordres:Object.assign({},(o&&o.ordres)||{}),coupeRot:!!(o&&o.coupeRot)};
+  /* ouvrir la ligue vaut présence : sans cela, le club passerait en pilote automatique complet */
+  if(!o&&L.phase==='saison')envoyerOrdres(true);
+}
+function contenuOrdres(){const moi=monEquipe(),e=LG.ed;const tit=e.tit.filter(i=>moi.joueurs.some(p=>p.id===i));
+  return{titulaires:tit,banc:moi.joueurs.filter(p=>!tit.includes(p.id)).map(p=>p.id),entr:e.entr,consigne:e.consigne,tactique:e.tactique,pot:e.pot,marque:e.marque,ordres:e.ordres,coupeRot:e.coupeRot}}
+async function envoyerOrdres(silencieux){
+  const L=LG.L,moi=monEquipe();if(!L||!moi||!LG.ed||L.phase!=='saison')return;
+  const c=contenuOrdres();LG.statutOrdres='envoi';
+  const r=await API.envoyerOrdres(L.id,moi.id,L.version+1,c);
+  if(r.erreur){LG.statutOrdres='erreur';if(!silencieux)informer('Impossible',r.erreur)}else{LG.ordres=c;LG.statutOrdres='ok'}
+  if(!silencieux||LG.onglet==='club')redessiner();
+}
+function vueSaison(){
+  const L=LG.L,E=L.etat,moi=monEquipe(),hq=E.horaires||{},pa=prochainAdv();
+  let h='<div class="panneau lg-etat"><b>'+(L.phase==='inter'||E.phase==='inter'?'Intersaison':'Saison '+E.saison+' · journée '+Math.min(E.jour+1,E.calendrier.length)+' sur '+E.calendrier.length)+'</b><p class="note">'
+    +(E.phase==='inter'?'Reprise : '+quand(hq.reprise)+'<br>Le marché d\'intersaison est ouvert (onglet Mercato) et chacun choisit son sponsor (onglet Mon club).'
+      :(L.etape==='mercato'?'Clôture du mercato : '+quand(hq.mercato)+'<br>':'Mercato clos. ')+'Prochain match : '+quand(hq.match))+'</p>'
+    +(pa?'<p style="margin:8px 0 0"><b>'+(pa.dom?'Vous recevez ':'Vous vous déplacez chez ')+esc(pa.adv.nom)+'</b>'+(pa.adv.humain?' ('+esc(pa.adv.pseudo||'un ami')+')':' (ordinateur)')+'</p>':'')+'</div>';
+  if(moi&&moi.gest&&moi.gest.evt)h+='<div class="panneau lg-bandeau"><b>'+esc(moi.gest.evt.titre)+'</b><p class="note">Une décision vous attend dans l\'onglet « Mon club ».</p></div>';
   const cl=classement(E);
-  h+='<div class="panneau"><b>Classement</b><table class="comptes lg-class">'+cl.map((T,k)=>'<tr'+(moi&&T.id===moi.id?' class="moi"':'')+'><td>'+(k+1)+'. '+esc(T.court)+(T.humain?'':' <small>(ordinateur)</small>')+'</td><td>'+T.j+' j · '+T.bp+'–'+T.bc+'</td><td><b>'+T.pts+' pts</b></td></tr>').join('')+'</table></div>';
-  if(moi)h+='<div class="panneau"><b>'+esc(moi.nom)+' · '+moi.or+' po</b><p class="note" style="margin-top:4px">'+moi.joueurs.map(p=>esc(p.nom)+' ('+POSTES[p.poste].court+', '+notePoste(p)+')').join(' · ')+'</p></div>';
+  h+='<div class="panneau"><b>Classement</b><table class="comptes lg-class">'+cl.map((T,k)=>'<tr'+(moi&&T.id===moi.id?' class="moi"':'')+'><td>'+(k+1)+'. '+esc(T.court)+(T.humain?'':' <small>(ordinateur)</small>')+'</td><td>'+T.j+' j · '+T.g+' v '+T.n+' n '+T.p+' d · '+T.bp+'–'+T.bc+'</td><td><b>'+T.pts+' pts</b></td></tr>').join('')+'</table></div>';
+  const C=LG.gaz&&LG.gaz.commune;
+  if(C)h+='<div class="panneau"><b>Derniers résultats (journée '+C.jour+')</b><table class="comptes lg-class">'+C.matchs.map(m=>'<tr'+(moi&&(m.dom===moi.id||m.ext===moi.id)?' class="moi"':'')+'><td>'+esc(m.nomDom)+'</td><td><b>'+m.score[0]+' – '+m.score[1]+'</b></td><td>'+esc(m.nomExt)+'</td></tr>').join('')+'</table><p class="note">Le récit des matchs est dans l\'onglet Gazette.</p></div>';
+  if(E.coupe&&E.coupe.tours&&E.coupe.tours.length){const t=E.coupe.tours[E.coupe.tours.length-1];h+='<div class="panneau"><b>Coupe du Gourdin · '+esc(t.nom)+'</b><p class="note" style="margin-top:4px">'+t.matchs.map(m=>esc(m.a)+' '+m.score[0]+' – '+m.score[1]+' '+esc(m.b)+(m.tab?' (t.a.b. '+m.tab[0]+'–'+m.tab[1]+')':'')).join('<br>')+(E.coupe.vainqueurNom?'<br><b>Vainqueur : '+esc(E.coupe.vainqueurNom)+'</b>':'')+'</p></div>'}
   return h;
+}
+const sel=(cle,options,val,extra)=>'<select data-sel="'+cle+'"'+(extra||'')+'>'+options.map(([v,l])=>'<option value="'+esc(String(v))+'"'+(String(v)===String(val===null||val===undefined?'':val)?' selected':'')+'>'+esc(l)+'</option>').join('')+'</select>';
+function carteClub(p,moi,pa){
+  const e=LG.ed,out=!dispo(p),tit=e.tit.includes(p.id)&&!out,saison=LG.L.phase==='saison';
+  const etat=p.blesse>0?'Blessé, encore '+pl(p.blesse,'match'):p.suspendu?'Suspendu au prochain match':'';
+  let h='<div class="carte lg-carte lg-joueur'+(tit?' misee':'')+'">'+vignette(p,moi.couleur)+'<div style="min-width:0"><span class="lg-nom">'+esc(p.nom)+'</span>'
+    +'<div class="puces"><span class="puce">'+p.poste+'</span><span class="puce">'+RACES[p.race].nom+'</span>'+(p.trait&&p.trait!=='aucun'&&TRAITS[p.trait]?'<span class="puce"'+aide(TRAITS[p.trait].desc)+'>'+TRAITS[p.trait].nom+'</span>':'')+'<span class="puce">'+p.age+' ans</span>'+(etat?'<span class="puce alerte">'+etat+'</span>':'')+'</div>'
+    +jaugesJoueur(p)+'<div style="font-size:12.5px;color:var(--creme-sourde);margin-top:3px">'+p.sal+' po par match · '+p.buts+' but'+(p.buts>1?'s':'')+' · '+p.matchs+' match'+(p.matchs>1?'s':'')+'</div></div><div class="achat">';
+  if(saison){
+    h+='<button class="discret'+(tit?' or':'')+'" data-l="titulaire" data-id="'+p.id+'"'+(out?' disabled':'')+'>'+(out?(p.blesse>0?'Infirmerie':'Tribune'):tit?'Titulaire':'Remplaçant')+'</button>'
+      +'<label class="lg-mini">Entraînement'+sel('entr:'+p.id,Object.keys(ENTR).map(k=>[k,ENTR[k].nom]),e.entr[p.id]||'repos',p.blesse>0?' disabled':'')+'</label>';
+    if(pa&&(p.poste==='Cogneur'||p.race==='elfenoir')){const o=e.ordres[p.id];const opts=[['','Aucun ordre']].concat(pa.adv.joueurs.map(a=>['cible:'+a.id,'Cibler '+a.nom]));
+      if(p.poste==='Cogneur')moi.joueurs.filter(x=>x!==p).forEach(x=>opts.push(['garde:'+x.id,'Protéger '+x.nom]));
+      h+='<label class="lg-mini">Ordre'+sel('ordre:'+p.id,opts,o?o.k+':'+o.id:'')+'</label>'}
+    if(p.blesse>0)h+='<button class="discret" data-l="soigner" data-id="'+p.id+'"'+(moi.or<COUT_SOIN?' disabled':'')+'>Soigner ('+COUT_SOIN+' po)</button>';
+  }
+  h+='<button class="discret danger lg-petit" data-l="renvoyer" data-id="'+p.id+'">Renvoyer</button></div></div>';
+  return h;
+}
+function vueMonClub(){
+  const L=LG.L,E=L.etat,moi=monEquipe(),e=LG.ed;if(!moi||!e)return'<div class="panneau">Chargement…</div>';
+  const g=moi.gest||{},pa=prochainAdv(),saison=L.phase==='saison';
+  let h='<div class="panneau lg-etat" style="border-left:6px solid '+esc(moi.couleur)+'"><b>'+esc(moi.nom)+'</b><div class="lg-chiffres"><span><b class="num">'+moi.or+' po</b>en caisse</span><span><b class="num">'+moi.joueurs.length+' / '+MAX_EFFECTIF+'</b>joueurs</span><span><b class="num">'+Math.round(moi.pop)+'</b>ferveur</span></div>'
+    +'<p class="note">Par match : '+masseSalariale(moi)+' po de salaires'+(coutStaff(moi)?' + '+coutStaff(moi)+' po de staff':'')+'.</p></div>';
+  /* décision en attente */
+  if(g.evt){const ev=g.evt;h+='<div class="panneau affiche evt lg-bandeau"><div class="duel" style="font-size:20px">'+esc(ev.titre)+'</div>'
+    +(ev.p&&ev.p.nom?'<div class="carte" style="margin-top:10px;box-shadow:none">'+vignette(ev.p,'#7a6650')+'<div style="min-width:0"><span class="lg-nom">'+esc(ev.p.nom)+'</span><div class="puces"><span class="puce">'+ev.p.poste+'</span><span class="puce">'+RACES[ev.p.race].nom+'</span></div>'+jaugesJoueur(ev.p)+'</div></div>':'')
+    +'<p style="margin-top:10px">'+esc(ev.texte)+'</p><div class="seg" style="margin-top:10px"><button data-l="evt" data-v="1">'+esc(ev.oui||'Accepter')+'</button><button data-l="evt" data-v="0">'+esc(ev.non||'Refuser')+'</button></div></div>'}
+  /* sponsor */
+  if(!g.sponsor&&g.offresSponsor&&g.offresSponsor.length)h+='<div class="panneau"><b>Choisissez votre sponsor de la saison</b>'+g.offresSponsor.map(id=>{const sp=sponsorDe(id);return sp?'<div class="lg-ligne"><div><b>'+esc(sp.nom)+'</b><p class="note" style="margin:2px 0 0">'+esc(sp.desc)+'</p></div><button class="discret or" data-l="sponsor" data-v="'+id+'">Signer</button></div>':''}).join('')+'</div>';
+  else if(g.sponsor){const sp=sponsorDe(g.sponsor);h+='<div class="panneau"><b>Sponsor : '+esc(sp.nom)+'</b><p class="note" style="margin-top:2px">'+esc(sp.desc)+'</p></div>'}
+  /* réglages de match */
+  if(saison&&pa){
+    const r=g.rapport;
+    h+='<div class="panneau"><b>Prochain match : '+(pa.dom?'réception de ':'déplacement chez ')+esc(pa.adv.nom)+'</b>'
+      +'<p class="note">'+(LG.statutOrdres==='ok'?'Vos ordres sont enregistrés. Vous pouvez les modifier jusqu\'au coup d\'envoi ('+quand((E.horaires||{}).match)+').':LG.statutOrdres==='erreur'?'<span class="alerte">Vos ordres n\'ont pas pu être enregistrés. Vérifiez votre connexion.</span>':'Enregistrement…')+'</p>';
+    if(r){const men=r.menace?pa.adv.joueurs.find(p=>p.id===r.menace):null;h+='<p class="note"><b>Votre stratège :</b> consigne conseillée <b>'+NOM_CONSIGNE[r.conseil]+'</b>'+(r.prediction?' ; il les attend en consigne '+NOM_CONSIGNE[r.prediction]:'')+(r.tacConseil?' ; plan conseillé : '+TACTIQUES[r.tacConseil].nom.toLowerCase():'')+(men?' ; joueur à surveiller : '+esc(men.nom):'')+'.</p>'}
+    h+='<span class="lab">Consigne</span><div class="seg">'+['prudent','normal','brutal'].map(k=>'<button data-l="consigne" data-v="'+k+'" aria-pressed="'+(e.consigne===k)+'">'+k.charAt(0).toUpperCase()+k.slice(1)+(r&&r.conseil===k?' ★':'')+'</button>').join('')+'</div><p class="note">'+CONSIGNES[e.consigne]+'</p>'
+      +'<label class="lg-mini large">Plan de jeu'+sel('tactique',TACTIQUE_IDS.map(k=>[k,TACTIQUES[k].nom]),e.tactique)+'</label><p class="note">'+esc(TACTIQUES[e.tactique].desc)+'</p>'
+      +'<label class="lg-mini large">Marquer un adversaire'+sel('marque',[['','Personne']].concat(pa.adv.joueurs.map(a=>[a.id,a.nom+' ('+POSTES[a.poste].court+')'])),e.marque||'')+'</label>'
+      +'<label class="lg-case"><input type="checkbox" data-case="pot"'+(e.pot?' checked':'')+(moi.or<COUT_POT?' disabled':'')+'> Graisser la patte de l\'arbitre ('+COUT_POT+' po)</label>'
+      +'<label class="lg-case"><input type="checkbox" data-case="coupeRot"'+(e.coupeRot?' checked':'')+'> En coupe, faire jouer les remplaçants</label></div>';
+  }
+  /* effectif */
+  const nbTit=e.tit.filter(i=>{const p=moi.joueurs.find(x=>x.id===i);return p&&dispo(p)}).length;
+  h+='<h3 class="soustitre">Effectif'+(saison?' · '+nbTit+' titulaire'+(nbTit>1?'s':'')+' sur 5':'')+'</h3>'+(saison&&nbTit<5?'<p class="note">S\'il manque des titulaires au coup d\'envoi, les meilleurs remplaçants disponibles entrent automatiquement.</p>':'')
+    +'<div class="effectif lg-vivier">'+moi.joueurs.slice().sort((a,b)=>(e.tit.includes(b.id)-e.tit.includes(a.id))||POSTE_IDS.indexOf(a.poste)-POSTE_IDS.indexOf(b.poste)).map(p=>carteClub(p,moi,pa)).join('')+'</div>';
+  /* stade et staff */
+  h+='<h3 class="soustitre">Stade</h3><div class="panneau">'+STADE_IDS.map(k=>{const n=nivStade(moi,k),c=STADE[k].cout[n];return'<div class="lg-ligne"><div><b>'+STADE[k].nom+' : '+STADE[k].niv[n]+'</b><p class="note" style="margin:2px 0 0">'+STADE[k].effet(n)+'</p></div>'+(n<3?'<button class="discret or" data-l="stade" data-v="'+k+'"'+(moi.or<c?' disabled':'')+'>Améliorer ('+c+' po)</button>':'<span class="note">Maximum</span>')+'</div>'}).join('')+'</div>';
+  h+='<h3 class="soustitre">Staff</h3><div class="panneau">'+ROLE_IDS.map(r=>{const st=moi.staff[r];let x='<div class="lg-ligne"><div><b>'+ROLES[r].nom+'</b><p class="note" style="margin:2px 0 0">'+(st?esc(st.nom)+' · niveau '+(st.niv+1)+' sur 5 · '+st.sal+' po par match':'Poste vacant')+'</p></div>'+(st?'<button class="discret danger lg-petit" data-l="licencier" data-v="'+r+'">Licencier</button>':'')+'</div>';
+    ((g.candidats&&g.candidats[r])||[]).forEach((c,i)=>{x+='<div class="lg-ligne lg-cand"><div><span>'+esc(c.nom)+' · niveau '+(c.niv+1)+' sur 5</span><p class="note" style="margin:2px 0 0">Prime '+c.prime+' po, puis '+c.sal+' po par match'+(st?' (remplace '+esc(st.nom)+')':'')+'</p></div><button class="discret" data-l="embaucher" data-v="'+r+'" data-id="'+i+'"'+(moi.or<c.prime?' disabled':'')+'>Embaucher</button></div>'});return x}).join('')+'</div>';
+  return h;
+}
+function vueMercato(){
+  const L=LG.L,E=L.etat,moi=monEquipe();if(!moi)return'';
+  const lot=(LG.vue&&LG.vue.marche)||[],ouvert=!!(E.encheres&&E.encheres.tour)&&lot.length>0;
+  const nb=Object.keys(LG.mises).length,total=Object.values(LG.mises).reduce((s,x)=>s+x,0);
+  let h='<div class="panneau lg-etat"><b>'+(ouvert?'Mercato ouvert':'Mercato fermé')+'</b><p class="note">'+(ouvert?'Clôture : '+quand(L.echeance):'Le marché rouvre après le prochain match, avec de nouveaux joueurs.')+'</p>'
+    +'<div class="lg-chiffres"><span><b class="num">'+moi.or+' po</b>en caisse</span><span><b class="num">'+moi.joueurs.length+' / '+MAX_EFFECTIF+'</b>joueurs</span><span><b class="num">'+nb+'</b>'+(nb>1?'mises':'mise')+' ('+total+' po)</span></div>'
+    +(ouvert?'<p class="note">Mêmes règles qu\'à la draft : mises secrètes, le plus offrant paie la deuxième offre + 1 po. Les notes sont celles que voit votre chineur : sans chineur, elles sont approximatives. Un club à moins de 6 joueurs reçoit en plus un jeune de son centre de formation.</p>':'')+'</div>';
+  if(ouvert)h+='<div class="effectif lg-vivier">'+lot.slice().sort((a,b)=>(b.plancher||0)-(a.plancher||0)).map(p=>carteEnchere(p,moi)).join('')+'</div>';
+  const M=E.mercato;
+  if(M&&(M.ventes.length||M.jeunes.length))h+='<div class="panneau" style="margin-top:12px"><b>Dernier mercato</b><p class="note" style="margin-top:4px">'+M.ventes.map(v=>esc(v.nom)+' ('+POSTES[v.poste].court+') → '+esc(v.clubNom)+' pour '+v.prix+' po'+(v.second?' <small>(devant '+esc(v.second.clubNom)+')</small>':'')).concat(M.jeunes.map(j=>esc(j.nom)+' rejoint '+esc((E.teams[j.club]||{}).court||'')+' (centre de formation)')).join('<br>')+'</p></div>';
+  else if(!ouvert)h+='<div class="panneau">Aucune recrue au dernier mercato.</div>';
+  return h;
+}
+function vueGazetteLigue(){
+  const G=LG.gaz;if(!G||(!G.mienne&&!G.commune))return'<div class="panneau"><p style="margin:0">Aucun numéro pour l\'instant. La gazette paraît après chaque journée.</p></div>';
+  let h='';
+  if(G.mienne){const P=pagesGazette(G.mienne);LG.pageG=Math.max(0,Math.min(P.length-1,LG.pageG));
+    h+='<div class="gz-haut"><div class="sommaire" role="tablist" aria-label="Sommaire">'+P.map((x,i)=>'<button role="tab" data-l="pageG" data-v="'+i+'" aria-selected="'+(i===LG.pageG)+'">'+x.court+'</button>').join('')+'</div></div>'
+      +'<article class="gazette pages" aria-live="polite">'+P[LG.pageG].html+'<div class="folio">— '+(LG.pageG+1)+' / '+P.length+' —</div></article>'}
+  const C=G.commune;
+  if(C){h+='<h3 class="soustitre">Tous les matchs de la journée '+C.jour+'</h3>'+C.matchs.map(m=>'<details class="panneau lg-match"><summary><b>'+esc(m.nomDom)+' '+m.score[0]+' – '+m.score[1]+' '+esc(m.nomExt)+'</b><span>'+esc(m.titre)+'</span></summary><p class="note"><i>'+esc(m.chapo)+'</i></p>'
+      +m.paras.map(p=>'<p class="lg-para'+(p.but?' but':'')+'">'+(p.m?'<b>'+esc(p.m)+'</b> ':'')+esc(p.t)+'</p>').join('')+(m.homme?'<p class="note">Homme du match : '+esc(m.homme.nom)+' ('+esc(m.homme.club)+')</p>':'')+'</details>').join('');
+    if(C.courrier&&C.courrier.length)h+='<h3 class="soustitre">Courrier des lecteurs</h3><div class="panneau">'+C.courrier.map(c=>'<p style="margin:0 0 8px">« '+esc(c.texte)+' »<br><small class="note">'+esc((LG.L.etat.teams[c.club]||{}).court||'Un lecteur')+'</small></p>').join('')+'</div>'}
+  return h;
+}
+/* ---------- Commissaire : rythme et happenings ---------- */
+const JOURS=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'];
+function vueRythme(){
+  const L=LG.L,r=Object.assign({jours:[1,3,5],heure:21,mercatoAvantH:24,interJ:3,rythmeMin:0,draftH:48,draft2H:12},L.reglages||{},(L.etat&&L.etat.reglages)||{});
+  let h='<div class="panneau"><b>Rythme de la ligue</b><span class="lab">Jours de match</span><div class="seg lg-jours">'+JOURS.map((j,i)=>'<button data-l="jour" data-v="'+i+'" aria-pressed="'+r.jours.includes(i)+'">'+j+'</button>').join('')+'</div>'
+    +'<label class="lg-mini large">Heure du coup d\'envoi'+sel('reg:heure',Array.from({length:24},(_,i)=>[i,i+' h']),r.heure)+'</label>'
+    +'<label class="lg-mini large">Clôture du mercato'+sel('reg:mercatoAvantH',[[0,'au coup d\'envoi'],[2,'2 h avant le match'],[6,'6 h avant'],[12,'12 h avant'],[24,'la veille (24 h avant)'],[48,'48 h avant']],r.mercatoAvantH)+'</label>'
+    +'<label class="lg-mini large">Durée de l\'intersaison'+sel('reg:interJ',[[1,'1 jour'],[2,'2 jours'],[3,'3 jours'],[5,'5 jours'],[7,'7 jours']],r.interJ)+'</label>';
+  if(L.phase==='inscriptions')h+='<label class="lg-mini large">Premier tour de draft'+sel('reg:draftH',[[1,'1 h'],[12,'12 h'],[24,'24 h'],[48,'48 h'],[72,'72 h']],r.draftH)+'</label><label class="lg-mini large">Second tour de draft'+sel('reg:draft2H',[[1,'1 h'],[6,'6 h'],[12,'12 h'],[24,'24 h']],r.draft2H)+'</label>';
+  h+='<label class="lg-mini large">Soirée éclair'+sel('reg:rythmeMin',[[0,'non : jours et heure ci-dessus'],[5,'un match toutes les 5 minutes'],[10,'toutes les 10 minutes'],[15,'toutes les 15 minutes'],[30,'toutes les 30 minutes'],[60,'toutes les heures']],r.rythmeMin)+'</label>'
+    +'<p class="note">Un changement s\'applique à partir de la prochaine étape programmée. La soirée éclair enchaîne les journées sans attendre les jours de match : pensez à la remettre sur « non » à la fin.</p>';
+  if(L.phase!=='inscriptions'&&L.phase!=='pause'&&L.echeance)h+='<span class="lab">Repousser la prochaine étape</span><div class="seg"><button data-l="repousser" data-v="1">d\'une heure</button><button data-l="repousser" data-v="24">d\'un jour</button></div>';
+  return h+'</div>';
+}
+function vueCreateur(){
+  const L=LG.L,f=LG.hap,T=L.etat.teams.filter(t=>t.humain);if(!f.club&&T.length)f.club=String(T[0].id);
+  const ch=(k,lab,max,ph)=>'<label for="lg-hap-'+k+'">'+lab+'</label><input type="text" id="lg-hap-'+k+'" data-hap="'+k+'" maxlength="'+max+'" placeholder="'+esc(ph||'')+'" value="'+esc(f[k]||'')+'" autocomplete="off">';
+  const nb=(k,lab,a,b)=>'<label class="lg-mini">'+lab+'<input type="number" inputmode="numeric" data-hap="'+k+'" min="'+a+'" max="'+b+'" value="'+esc(f[k])+'"></label>';
+  const TYPES=[['don','Un cadeau en po, avec votre texte'],['joueur','Un joueur sur mesure frappe à la porte'],['veteran','Rebondissement : un vétéran propose ses services'],['mercenaire','Rebondissement : un mercenaire pour un match'],['collecte','Rebondissement : les supporters font la quête'],['guerisseur','Rebondissement : le guérisseur'],['transfuge','Rebondissement : un transfuge'],['mecene','Rebondissement : le mécène aux chapeaux à plumes'],['banquier','Rebondissement : le banquier']];
+  let h='<div class="panneau lg-createur"><b>Créateur : envoyer un happening</b><p class="note">Réservé à vous. Le club choisi reçoit une proposition dans son onglet « Mon club » et décide d\'accepter ou non. Personne d\'autre n\'est prévenu.</p>'
+    +'<label class="lg-mini large">Pour quel club'+sel('hap:club',T.map(t=>[t.id,t.nom+(t.pseudo?' ('+t.pseudo+')':'')]),f.club)+'</label>'
+    +'<label class="lg-mini large">Quoi'+sel('hap:k',TYPES,f.k)+'</label>';
+  if(f.k==='don')h+=nb('po','Montant (po)',1,500)+ch('titre','Titre',80,'Un cadeau tombé du ciel')+ch('texte','Votre texte',600,'Merci pour tes retours sur le jeu !');
+  if(f.k==='joueur')h+=ch('nom','Nom du joueur',40,'Hugo le Terrible')+'<div class="lg-grille">'
+    +'<label class="lg-mini">Joueur ou joueuse'+sel('hap:sexe',[['m','Joueur'],['f','Joueuse']],f.sexe)+'</label><label class="lg-mini">Peuple'+sel('hap:race',RACE_IDS.map(k=>[k,RACES[k].nom]),f.race)+'</label><label class="lg-mini">Poste'+sel('hap:poste',POSTE_IDS.map(k=>[k,k]),f.poste)+'</label>'
+    +nb('f','Force',15,97)+nb('v','Vitesse',15,97)+nb('t','Balle',15,97)+nb('sp','Spécialité',0,95)+nb('prime','Prime à payer (po)',0,500)+'</div>'
+    +ch('titre','Titre',80,'Une légende frappe à la porte')+ch('texte','Votre texte',600,'Il a entendu parler de votre club et veut en être.')
+    +'<p class="note">Repères : un bon joueur de départ a environ 60 à 70 dans sa note principale ; au-delà de 85, c\'est une vedette. Le portrait est tiré parmi ceux de son peuple ; les portraits sur mesure viendront plus tard.</p>';
+  return h+'<button class="gros" data-l="happening"'+(LG.occupe?' disabled':'')+'>Envoyer le happening</button></div>';
 }
 
 /* l'écran « multi » de jeu.js nous passe la main */
@@ -227,9 +383,24 @@ document.addEventListener('input',ev=>{
   const b=ev.target;if(!b||!b.dataset)return;
   if(b.dataset.champ)LG.form[b.dataset.champ]=b.value;
   if(b.dataset.mise)LG.saisie[b.dataset.mise]=b.value;
+  if(b.dataset.hap&&b.tagName==='INPUT')LG.hap[b.dataset.hap]=b.value;
+});
+document.addEventListener('change',ev=>{
+  const b=ev.target;if(!b||!b.dataset||S||ecran!=='multi')return;
+  const e=LG.ed,L=LG.L;
+  if(b.dataset.case&&e){e[b.dataset.case]=b.checked;envoyerOrdres();return}
+  const c=b.dataset.sel;if(!c)return;const v=b.value;
+  if(c.startsWith('hap:')){LG.hap[c.slice(4)]=v;rendre();return}
+  if(c.startsWith('reg:')){const k=c.slice(4);faire({action:'reglages',ligue:L.id,reglages:{[k]:Number(v)}});return}
+  if(!e)return;
+  if(c.startsWith('entr:'))e.entr[c.slice(5)]=v;
+  else if(c.startsWith('ordre:')){const id=c.slice(6);if(!v)delete e.ordres[id];else{const[k,x]=v.split(':');e.ordres[id]={k,id:Number(x)}}}
+  else if(c==='tactique')e.tactique=v;
+  else if(c==='marque')e.marque=v?Number(v):null;
+  envoyerOrdres();
 });
 function clubSaisi(){const f=LG.form;return{nom:f.club.trim(),couleur:f.couleur,peuple:f.peuple}}
-async function ouvrir(id){LG.id=id;LG.L=null;LG.clubs=[];LG.vue=null;LG.mises={};LG.saisie={};LG.signature='';LG.ecran='ligue';LG.onglet='ligue';redessiner();await recharger(false)}
+async function ouvrir(id){LG.id=id;LG.L=null;LG.clubs=[];LG.vue=null;LG.mises={};LG.saisie={};LG.signature='';LG.ed=null;LG.edCle='';LG.ordres=null;LG.gaz=null;LG.pageG=0;LG.ecran='ligue';LG.onglet='ligue';redessiner();await recharger(false)}
 document.addEventListener('click',ev=>{
   const b=ev.target.closest&&ev.target.closest('[data-l]');if(!b||S||ecran!=='multi')return;
   if(b.disabled)return;
@@ -259,12 +430,29 @@ document.addEventListener('click',ev=>{
     case'adjoint':faire({action:'adjoint',ligue:L.id,club:id,oui:v==='1'});return;
     case'exclure':{const c=LG.clubs.find(x=>x.club_index===id);demander('Exclure '+(c?c.pseudo:'ce membre')+' ?',L.phase==='inscriptions'?'Son inscription sera annulée.':'Son club continuera de jouer, dirigé par l\'ordinateur. Vous pourrez le confier à un autre ami.','Exclure',()=>{faire({action:'exclure',ligue:L.id,club:id})});break}
     case'confier':faire({action:'confier',ligue:L.id,club:id},async r=>{informer('Code de reprise : '+r.code,'Donnez ce code à votre ami. Il le saisit dans « Rejoindre une ligue avec un code » et reprend le club tel qu\'il est. Le code ne sert qu\'une fois.')});return;
-    case'miser':{const p=L.etat.draft.vivier.find(x=>x.id===id),moi=LG.vue&&LG.vue.club,m=Math.floor(Number(LG.saisie[id]!==undefined?LG.saisie[id]:LG.mises[id]));if(!p||!moi)break;
+    case'miser':{const lot=L.etat.draft?L.etat.draft.vivier:(LG.vue&&LG.vue.marche)||[];const p=lot.find(x=>x.id===id),moi=LG.vue&&LG.vue.club,m=Math.floor(Number(LG.saisie[id]!==undefined?LG.saisie[id]:LG.mises[id]));if(!p||!moi)break;
       const min=p.plancher||1;
       if(!(m>=min)){informer('Mise trop basse','La mise minimale pour '+p.nom+' est de '+min+' po.');break}
       if(m>moi.or){informer('Mise trop haute','Vous ne pouvez pas miser plus que votre caisse ('+moi.or+' po).');break}
       if(moi.joueurs.length>=MAX_EFFECTIF){informer('Effectif complet','Vous avez déjà '+MAX_EFFECTIF+' joueurs.');break}
       API.miser(L.id,moi.id,L.etat.encheres.tour,id,m).then(r=>{if(r.erreur)informer('Impossible',r.erreur);else{LG.mises[id]=m;delete LG.saisie[id];Son.jouer('piece')}redessiner()});return}
+    case'pageG':LG.pageG=Number(v);break;
+    case'titulaire':{const e=LG.ed;if(!e)break;const i=e.tit.indexOf(id);if(i>=0)e.tit.splice(i,1);else{const moi=monEquipe();if(e.tit.filter(x=>{const p=moi.joueurs.find(q=>q.id===x);return p&&dispo(p)}).length>=5){informer('Cinq titulaires au maximum','Passez d\'abord un titulaire remplaçant.');break}e.tit.push(id)}envoyerOrdres();break}
+    case'consigne':if(LG.ed){LG.ed.consigne=v;envoyerOrdres()}break;
+    case'evt':faire({action:'gestion',ligue:L.id,geste:{k:'evenement',oui:v==='1'}},async r=>{if(r.msg)informer('C\'est fait',r.msg)});return;
+    case'sponsor':faire({action:'gestion',ligue:L.id,geste:{k:'sponsor',id:v}});return;
+    case'stade':faire({action:'gestion',ligue:L.id,geste:{k:'stade',id:v}});return;
+    case'embaucher':faire({action:'gestion',ligue:L.id,geste:{k:'embaucher',role:v,i:id}});return;
+    case'licencier':demander('Licencier ?','Le poste sera vacant et vous ne récupérez pas la prime versée.','Licencier',()=>{faire({action:'gestion',ligue:L.id,geste:{k:'licencier',role:v}})});break;
+    case'soigner':faire({action:'gestion',ligue:L.id,geste:{k:'soigner',id}});return;
+    case'renvoyer':{const p=monEquipe().joueurs.find(x=>x.id===id);demander('Renvoyer '+(p?p.nom:'ce joueur')+' ?','Il quitte le club pour de bon. Vous touchez '+(p?Math.round(valeur(p)*.4):0)+' po d\'indemnité.','Renvoyer',()=>{faire({action:'gestion',ligue:L.id,geste:{k:'renvoyer',id}})});break}
+    case'jour':{const r=Object.assign({jours:[1,3,5]},L.reglages||{},(L.etat&&L.etat.reglages)||{});const j=r.jours.slice(),n=Number(v),i=j.indexOf(n);if(i>=0){if(j.length<=1){informer('Il faut au moins un jour de match','');break}j.splice(i,1)}else j.push(n);faire({action:'reglages',ligue:L.id,reglages:{jours:j.sort()}});return}
+    case'repousser':faire({action:'reglages',ligue:L.id,reglages:{},echeance:new Date(new Date(L.echeance).getTime()+Number(v)*3600000).toISOString()});return;
+    case'happening':{const f=LG.hap;let hp;
+      if(f.k==='don')hp={k:'don',po:Number(f.po),titre:f.titre,texte:f.texte};
+      else if(f.k==='joueur'){if(!f.nom.trim()){informer('Il manque le nom du joueur','');break}hp={k:'joueur',titre:f.titre,texte:f.texte,joueur:{nom:f.nom.trim(),sexe:f.sexe,race:f.race,poste:f.poste,f:Number(f.f),v:Number(f.v),t:Number(f.t),sp:Number(f.sp),prime:Number(f.prime)}}}
+      else hp={k:f.k};
+      faire({action:'happening',ligue:L.id,club:Number(f.club),happening:hp},async()=>{informer('Happening envoyé','Le club le découvrira dans son onglet « Mon club ».')});return}
     case'retirer':{const moi=LG.vue&&LG.vue.club;if(!moi)break;API.retirer(L.id,moi.id,L.etat.encheres.tour,id).then(r=>{if(r.erreur)informer('Impossible',r.erreur);else{delete LG.mises[id];delete LG.saisie[id]}redessiner()});return}
   }
   rendre();
