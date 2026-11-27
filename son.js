@@ -117,6 +117,12 @@ const Son=(()=>{
     triste(t){[65,64,62].forEach((m,i)=>osc('sawtooth',hz(m-12),t+i*.4,.38,.13,sfx,{lp:800,vib:5,vibA:4,verb:1}));osc('sawtooth',hz(49),t+1.2,1.2,.16,sfx,{lp:700,vib:5,vibA:8,verb:1})},
     tambour(t){for(let i=0;i<12;i++)souffle(t+i*.055,.07,.12+i*.03,sfx,'lowpass',420,1);osc('sine',85,t+.68,.7,.7,sfx,{vers:40,versDur:.3,verb:1})}
   };
+  /* Quand on quitte l'appli (autre appli, écran d'accueil, écran verrouillé, onglet caché), tout le son se tait.
+     Il reprend au retour ; si le téléphone l'exige, au premier toucher. */
+  function veille(){if(!ctx)return;if(document.hidden)ctx.suspend().catch(()=>{});else ctx.resume().catch(()=>{})}
+  document.addEventListener('visibilitychange',veille);
+  addEventListener('pagehide',()=>{if(ctx)ctx.suspend().catch(()=>{})});
+  addEventListener('pageshow',veille);
   return{
     reg,
     toucher(){ if(init())reprendre() },
