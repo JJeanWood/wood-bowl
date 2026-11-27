@@ -66,18 +66,43 @@ En soirée, tout le monde est présent : pas de pilote automatique ni de notific
 - Fonction **`commissaire`** : actions réservées au commissaire (lancer, pause, reprise, réglages).
 - La clé « service_role » ne sert qu'au serveur. Elle n'apparaît **jamais** dans l'appli ni dans le dépôt.
 
-## Ce que le moteur doit encore savoir faire (chantier « moteur multi »)
-Aujourd'hui, le moteur suppose un seul humain : le club n° 0 (`S.teams[0]`). À faire :
-1. `S.humains` : liste des index de clubs humains. `estHumain(S,T)` remplace les tests `T.id===0` qui distinguent humain et ordinateur.
-2. `jouerJournee(S, ordres)` : options de match, composition et entraînement de **chaque** club humain à partir de ses ordres (ou du pilote automatique).
-3. Finances, événements, stade, staff et sponsor **par club** humain (aujourd'hui rangés dans `S` pour le seul club 0).
-4. Gazette générée **pour chaque club humain** (sa une, son récit, ses comptes).
-5. Marché commun et enchères : `ouvrirMercato`, `deposerMise`, `depouiller`.
-6. En solo, rien ne change (`S.humains = [0]`). Test de non-régression : à graine égale, une saison solo doit donner exactement le même résultat avant et après.
+## Moteur de ligue : fait (27 nov. 2026)
+Le moteur sait jouer une ligue de 6, 8 ou 10 clubs avec plusieurs clubs humains. En solo, rien ne change : à graine égale, les parties sont identiques à l'ancien moteur.
+
+Comment c'est rangé :
+- `S.multi = true` en ligue. Chaque club humain a `T.humain = true` et un tiroir de gestion `T.gest` (choix de match, sponsor, candidats au staff, rapport du stratège, rebondissement, intersaison, historique de caisse, deuils). En solo, ces mêmes données restent dans `S`. `G(S,T)` renvoie le bon tiroir dans les deux cas ; `humains(S)` et `clubsIA(S)` donnent les listes de clubs.
+- Presque toutes les fonctions du moteur acceptent le club concerné en dernier paramètre (par défaut : le club 0 du solo).
+- `ligue.js` (nouveau fichier, utilisé seulement en ligue) :
+  - `nouvelleLigue({nom, taille, reglages, clubs:[{nom, couleur, peuple, pseudo}]})` : phase « draft » ;
+  - `depouillerDraft(S, mises)` : 1er tour, puis 2e tour, puis la saison démarre ;
+  - `depouillerMercato(S, mises)` : clôture du marché commun ;
+  - `miseValide(S, T, joueurId, montant)` : pour prévenir le joueur avant l'envoi ;
+  - `appliquerOrdres(S, T, ordres)` et `piloteAuto(S, T)` : appelés par `jouerJournee(S, ordres)` ;
+  - `appliquerAction(S, T, action)` : stade, staff, sponsor, rebondissement, soins, renvoi, prêt d'urgence, intersaison ;
+  - `appliquerEchange(S, e)` : échange entre deux amis, une fois accepté ;
+  - `vuePour(S, id)` : la copie de l'état qu'un joueur a le droit de voir.
+- `jouerJournee(S, ordres)` renvoie en ligue `{par: {id du club: sa gazette}, commune: l'édition commune}`. Deux amis qui s'affrontent lisent le même récit.
+- Une mise : `{club, joueur, montant}`. Les ordres d'un club : `{titulaires, banc, entr, consigne, tactique, pot, marque, ordres, coupeRot}` (détail en tête de `appliquerOrdres`).
+
+Tests : `node multijoueur/test_ligue.js` (ligues de 1 à 10 amis, 2 saisons, enchères, ordres farfelus, absents, déterminisme, secrets) et `node multijoueur/test_non_regression.js . <ancien moteur>`.
+
+### Choix faits dans le moteur, à confirmer par Juju
+- **Enchères** : on attribue d'abord le joueur le plus disputé. Une mise ne compte que si le club a encore la somme en caisse à ce moment-là : on peut donc miser sur beaucoup de joueurs, chaque mise étant limitée par sa caisse. Prix plancher = la moitié de la valeur du joueur (c'est le prix payé quand on est seul à miser).
+- **Draft** : budget de 260 po, vivier de 12 joueurs par club humain, notes visibles sans erreur, ce qui reste du budget devient la caisse de départ. Après le 2e tour, un club à moins de 5 joueurs (ou sans passeur, etc.) reçoit des jeunes du pays de son peuple.
+- **Mercato** : 6 à 12 joueurs par journée selon le nombre d'amis ; chacun voit les notes à travers son propre chineur ; la remise du chineur s'applique au prix payé. Un club à moins de 6 joueurs reçoit automatiquement un jeune de son centre de formation. Les clubs de l'ordinateur ne misent pas.
+- **Légendes** : jamais à la draft ; au mercato, 5 % de chances par journée à partir de la mi-saison de la première année ; possibles aussi parmi les arrivées d'intersaison.
+- **Stratège face à un ami** : il juge le rapport de forces et désigne la menace, mais ne prédit ni consigne ni plan (les ordres de l'ami ne sont pas encore donnés).
+- **Coupe** : tableau à 8 (6 ou 8 clubs) ou à 16 (10 clubs), complété par des invités ; tours répartis sur la saison.
+- **Primes** : barème de fin de saison étiré à 8 ou 10 clubs ; sponsors « première moitié » et « deux derniers » adaptés.
+- **Secrets** : la vue d'un joueur ne contient ni profil caché (seule la pierre de brume), ni la caisse, la composition, l'entraînement et la gestion des autres amis. Réglage `caissesVisibles` pour montrer les caisses.
+
+### À prévoir à l'étape serveur
+- L'état complet (avec profils cachés, intentions de l'ordinateur, vraies notes du marché) ne doit pas être lisible par l'appli : il faudra une table privée (par ex. `etats_prives`, sans aucun droit pour les joueurs) et servir `vuePour(S, club)` par une fonction. Petit ajout SQL à faire coller à Juju à ce moment-là, avec la planification `pg_cron`.
+- Le serveur doit charger `ligue.js` en plus des cinq fichiers du moteur.
 
 ## Ordre de travail
-1. Supabase : création du projet par Juju (pas à pas), collage de `supabase.sql`, réglages Auth.
-2. Moteur multi (points 1 à 6 ci-dessus), testé en simulation avec 3 ou 4 « faux amis ».
+1. Supabase : création du projet par Juju (pas à pas), collage de `supabase.sql`, réglages Auth (« Confirm email » désactivé dans Authentication › Sign In / Providers › bloc User Signups).
+2. Moteur multi : **fait** (voir plus haut).
 3. Fonctions serveur `tick` et `commissaire`.
 4. Écrans de l'appli : créer ou rejoindre une ligue, draft, mercato, gazette de ligue, échanges, réglages du commissaire.
 5. Notifications.

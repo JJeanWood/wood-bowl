@@ -116,7 +116,7 @@ const VERDICTS={
   defaiteLarge:["Une raclée. Il faudra revoir beaucoup de choses, à commencer par la défense.","On a vu des naufrages plus discrets. Repos général conseillé."]
 };
 function analyse(S,res,x){
-  const i=res.dom===0?0:1,o=1-i;const st=res.st[i],so=res.st[o];const L=[];
+  const i=res.dom===(x.moi||0)?0:1,o=1-i;const st=res.st[i],so=res.st[o];const L=[];
   const nous=res.score[i],eux=res.score[o];const ra=res.rapport[i],rd=res.rapport[o];
   const dom=st.occ-so.occ;
   let v;if(nous>eux)v=nous-eux>=3?'victoireLarge':dom<=-2?'victoireDomine':'victoire';else if(nous<eux)v=eux-nous>=3?'defaiteLarge':dom>=2?'defaiteDomine':'defaite';else v='nul';
@@ -149,7 +149,7 @@ function analyse(S,res,x){
   // stratège
   const r=x.rapStrat;
   if(r){
-    const bon=r.prediction===r.reel;
+    const bon=r.humain||r.prediction===r.reel; /* face à un humain, le stratège ne prédit rien */
     if(r.suivi&&r.fiable)L.push('Votre stratège avait vu juste et vous l\'avez écouté : +'+K.plan[r.niv+1]+' % sur le terrain.');
     else if(r.suivi&&!r.fiable)L.push('Vous avez suivi votre stratège, mais il s\'était trompé'+(bon?'':' : ils ont joué '+r.reel+' et non '+r.prediction)+'. Aucun bonus.');
     else if(!r.suivi&&r.fiable)L.push('Votre stratège conseillait de jouer '+r.conseil+' et il avait raison. Vous avez laissé un petit bonus sur la table.');
@@ -179,28 +179,49 @@ function resume(S,res){
   return elide(t);
 }
 /* l'homme (ou la femme) du match, avec de quoi afficher son portrait */
-function hommeDe(S,res){
+function hommeDe(S,res,moi){
   const tous=res.joueurs[0].concat(res.joueurs[1]);const h=tous.slice().sort((a,b)=>b.note-a.note)[0];if(!h)return null;
   const T=S.teams[res.joueurs[0].includes(h)?res.dom:res.ext];
-  return{nom:h.nom,f:h.sexe?h.sexe==='f':(S._sexe&&S._sexe[h.nom])==='f',note:h.note,club:T.court,couleur:T.couleur,race:h.race,tete:h.tete,poste:h.poste,leg:h.leg,perf:{b:h.perf.b||0,pd:h.perf.pd||0,sort:h.perf.sort||0},moi:T.id===0};
+  return{nom:h.nom,f:h.sexe?h.sexe==='f':(S._sexe&&S._sexe[h.nom])==='f',note:h.note,club:T.court,couleur:T.couleur,race:h.race,tete:h.tete,poste:h.poste,leg:h.leg,perf:{b:h.perf.b||0,pd:h.perf.pd||0,sort:h.perf.sort||0},moi:T.id===(moi||0)};
 }
-function gazette(S,res,ailleurs,x){
-  const A=S.teams[res.dom],B=S.teams[res.ext];const i=res.dom===0?0:1;
-  const f=faitsDuMatch(res);
+/* l'article d'un match : écrit une seule fois par journée en ligue (x.cache), pour que tous les amis lisent le même récit */
+function articleDe(S,res,C){
+  const k='a'+res.dom;if(C&&C[k])return C[k];
+  const A=S.teams[res.dom],B=S.teams[res.ext];
   const paras=[];let prev={nous:0,eux:0};
   res.pre.forEach(e=>paras.push({m:'Avant-match',t:phraseEvt(S,res,e,prev)}));
   let sc=[0,0];
-  res.ev.forEach(e=>{const pv={nous:sc[e.c],eux:sc[1-e.c]};paras.push({m:e.m<=1?'1re':Math.min(80,e.m)+'e',t:phraseEvt(S,res,e,pv),but:!!e.s,nous:e.c===i});if(e.s)sc=[e.s[0],e.s[1]]});
+  res.ev.forEach(e=>{const pv={nous:sc[e.c],eux:sc[1-e.c]};paras.push({m:e.m<=1?'1re':Math.min(80,e.m)+'e',t:phraseEvt(S,res,e,pv),but:!!e.s,c:e.c});if(e.s)sc=[e.s[0],e.s[1]]});
   if(!res.ev.length)paras.push({m:'',t:"Il ne s'est rien passé. Vraiment rien. Notre envoyé spécial s'est endormi."});
   const chapo=remplir(choisir(S,'chapo',CHAPOS),{n:res.public.toLocaleString('fr-FR'),A:A.court,B:B.court});
-  const tous=res.joueurs[0].concat(res.joueurs[1]);const homme=tous.slice().sort((a,b)=>b.note-a.note)[0];
+  const art={paras,chapo};if(C)C[k]=art;return art;
+}
+function gazette(S,res,ailleurs,x){
+  const moi=x.moi||0,C=x.cache||null;
+  const A=S.teams[res.dom],B=S.teams[res.ext];const i=res.dom===moi?0:1;
+  const f=faitsDuMatch(res);
+  const art=articleDe(S,res,C);const chapo=art.chapo;
+  const paras=art.paras.map(p=>{const q={m:p.m,t:p.t};if(p.but!==undefined){q.but=p.but;q.nous=p.c===i}return q});
+  const memo=(k,fn)=>C?(C[k]!==undefined?C[k]:(C[k]=fn())):fn();
   const notes=res.joueurs[i].slice().sort((a,b)=>b.note-a.note).map(j=>({nom:j.nom,poste:j.poste,note:j.note,com:commentaire(j)}));
-  const cl=classement(S);const rangMoi=cl.findIndex(T=>T.id===0);
-  const mini=cl.map((T,k)=>({rang:k+1,nom:T.court,pts:T.pts,moi:T.id===0})).filter((t,k)=>k<3||t.moi);
-  const prochain=S.jour+1<S.calendrier.length?(()=>{const m=S.calendrier[S.jour+1].find(([h,a])=>h===0||a===0);return(m[0]===0?'Vous recevez ':'Vous vous déplacez chez ')+S.teams[m[0]===0?m[1]:m[0]].nom+'.'})():null;
-  return{saison:S.saison,jour:x.jour,article:{titre:titreDe(S,res,f),score:A.court+' '+res.score[0]+' – '+res.score[1]+' '+B.court,chapo,paras},
-    analyse:analyse(S,res,x),notes,homme:hommeDe(S,res),
-    ailleurs:ailleurs.map(r=>resume(S,r)),
-    matchs:ailleurs.map(r=>({titre:titreDe(S,r,faitsDuMatch(r)),dom:S.teams[r.dom].court,ext:S.teams[r.ext].court,cd:S.teams[r.dom].couleur,ce:S.teams[r.ext].couleur,score:r.score,texte:resume(S,r).slice((S.teams[r.dom].court+' '+r.score[0]+' – '+r.score[1]+' '+S.teams[r.ext].court+'.').length).trim(),homme:hommeDe(S,r)})),mini,prochain,infirmerie:x.infirmerie,comptes:x.comptes,solde:x.solde,pop:x.pop,vente:x.vente,
+  const cl=classement(S);
+  const mini=cl.map((T,k)=>({rang:k+1,nom:T.court,pts:T.pts,moi:T.id===moi})).filter((t,k)=>k<3||t.moi);
+  const prochain=S.jour+1<S.calendrier.length?(()=>{const m=S.calendrier[S.jour+1].find(([h,a])=>h===moi||a===moi);return(m[0]===moi?'Vous recevez ':'Vous vous déplacez chez ')+S.teams[m[0]===moi?m[1]:m[0]].nom+'.'})():null;
+  const titreM=r=>memo('t'+r.dom,()=>titreDe(S,r,faitsDuMatch(r)));
+  const resumeM=r=>memo('r'+r.dom,()=>resume(S,r));
+  return{saison:S.saison,jour:x.jour,article:{titre:C?titreM(res):titreDe(S,res,f),score:A.court+' '+res.score[0]+' – '+res.score[1]+' '+B.court,chapo,paras},
+    analyse:analyse(S,res,x),notes,homme:hommeDe(S,res,moi),
+    ailleurs:ailleurs.map(r=>resumeM(r)),
+    matchs:ailleurs.map(r=>({titre:titreM(r),dom:S.teams[r.dom].court,ext:S.teams[r.ext].court,cd:S.teams[r.dom].couleur,ce:S.teams[r.ext].couleur,score:r.score,texte:resumeM(r).slice((S.teams[r.dom].court+' '+r.score[0]+' – '+r.score[1]+' '+S.teams[r.ext].court+'.').length).trim(),homme:hommeDe(S,r,moi)})),mini,prochain,infirmerie:x.infirmerie,comptes:x.comptes,solde:x.solde,pop:x.pop,vente:x.vente,
     breve:choisir(S,'breve',BREVES),victoire:res.score[i]>res.score[1-i]?1:res.score[i]<res.score[1-i]?-1:0};
+}
+/* ligue entre amis : l'édition commune, avec le récit complet de tous les matchs de la journée */
+function editionCommune(S,resultats,C,jour){
+  const cl=classement(S);
+  return{saison:S.saison,jour,
+    matchs:resultats.map(r=>{const a=articleDe(S,r,C);const A=S.teams[r.dom],B=S.teams[r.ext];
+      return{dom:r.dom,ext:r.ext,nomDom:A.court,nomExt:B.court,cd:A.couleur,ce:B.couleur,score:r.score,titre:C['t'+r.dom]!==undefined?C['t'+r.dom]:(C['t'+r.dom]=titreDe(S,r,faitsDuMatch(r))),chapo:a.chapo,
+        paras:a.paras.map(p=>{const q={m:p.m,t:p.t};if(p.but!==undefined){q.but=p.but;q.c=p.c}return q}),homme:hommeDe(S,r,-1),public:r.public}}),
+    classement:cl.map((T,k)=>({rang:k+1,id:T.id,nom:T.court,couleur:T.couleur,j:T.j,g:T.g,n:T.n,p:T.p,bp:T.bp,bc:T.bc,pts:T.pts})),
+    breve:choisir(S,'breve',BREVES)};
 }

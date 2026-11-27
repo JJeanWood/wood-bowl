@@ -60,7 +60,7 @@ const LEGENDES=[
 ];
 const legendeDe=id=>LEGENDES.find(l=>l.id===id);
 function legendesLibres(S){const pris=new Set();(S.teams||[]).forEach(T=>T.joueurs.forEach(p=>{if(p.leg&&!p.mort)pris.add(p.leg)}));(S.marche||[]).forEach(p=>{if(p.leg)pris.add(p.leg)});
-  (S.fame||[]).concat(S.morts||[]).forEach(f=>{if(f.leg)pris.add(f.leg)});if(S.inter&&S.inter.arrivees)S.inter.arrivees.forEach(a=>{if(a.p&&a.p.leg)pris.add(a.p.leg)});
+  (S.fame||[]).concat(S.morts||[]).forEach(f=>{if(f.leg)pris.add(f.leg)});const inters=S.multi?S.teams.map(T=>T.gest&&T.gest.inter):[S.inter];inters.forEach(I=>{if(I&&I.arrivees)I.arrivees.forEach(a=>{if(a.p&&a.p.leg)pris.add(a.p.leg)})});if(S.draft&&S.draft.vivier)S.draft.vivier.forEach(p=>{if(p.leg)pris.add(p.leg)});
   return LEGENDES.filter(l=>!pris.has(l.id))}
 function vueLegende(S,id){S.legVues=S.legVues||[];if(!S.legVues.includes(id))S.legVues.push(id)}
 function creerLegende(S,L){

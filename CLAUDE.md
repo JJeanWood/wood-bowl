@@ -15,6 +15,7 @@ Matchs simulés, gazette « L'Écho du Gourdin », portraits façon cartes de ba
 
 ## Architecture
 - `moteur.js` : règles, création des joueurs, simulation (`simMatch`), journée (`jouerJournee`), intersaison, marché, prêt d'urgence, ordres (cibler / garde du corps).
+- `ligue.js` : ligue entre amis (draft, enchères, marché commun, ordres, pilote automatique, vue de chaque joueur). Pas encore chargé par `index.html`.
 - `legendes.js` : 36 joueurs légendaires et leurs pouvoirs.
 - `carriere.js` : divisions (4 → 1), âge, déclin, retraite, parrainage, profil caché (mental, régularité, robustesse), cadres de portrait, Coupe du Gourdin.
 - `gazette.js`, `gazette2.js` : textes de la gazette.
@@ -35,7 +36,9 @@ Taille : 6 à 8 amis au départ, 10 au maximum (ligue de 6 à 10 clubs, l'ordina
 
 Plan détaillé, base de données et suivi du chantier : `multijoueur/MULTIJOUEUR.md` et `multijoueur/supabase.sql`.
 Le moteur est déterministe avec `R=graine(seed)` ; `estH(T)` distingue un club humain (`T.humain`) d'un club de l'ordinateur.
+En ligue (`S.multi`), la gestion de chaque club humain est dans `T.gest` (en solo : dans `S`) ; toujours passer par `G(S,T)`. Attention : `T.g` est le nombre de victoires.
 Test de non-régression du solo : `node multijoueur/test_non_regression.js <nouveau> <ancien>` (mêmes graines, même résultat).
+Test de la ligue : `node multijoueur/test_ligue.js` (simulation avec de faux amis).
 
 ## Vérifier avant de livrer
 - Tests moteur en Node (concaténer moteur.js, legendes.js, carriere.js, gazette.js, gazette2.js dans `new Function`) : simuler plusieurs saisons sans erreur.

@@ -145,7 +145,8 @@ drop policy if exists "gazettes lisibles par les membres" on public.gazettes;
 create policy "gazettes lisibles par les membres" on public.gazettes
   for select using (public.est_membre(ligue_id));
 
--- Échanges : visibles par les deux clubs concernés ; on propose en son nom ; le destinataire répond.
+-- Échanges : visibles par les deux clubs concernés ; on propose en son nom ;
+-- seul le destinataire accepte ou refuse, seul l'auteur annule, et seulement tant que la proposition est en attente.
 drop policy if exists "echanges visibles" on public.echanges;
 create policy "echanges visibles" on public.echanges
   for select using (public.mon_club(ligue_id) in (de_club, vers_club));
@@ -154,8 +155,12 @@ create policy "proposer un echange" on public.echanges
   for insert with check (de_club = public.mon_club(ligue_id) and statut = 'proposee');
 drop policy if exists "repondre a un echange" on public.echanges;
 create policy "repondre a un echange" on public.echanges
-  for update using (public.mon_club(ligue_id) in (de_club, vers_club))
-  with check (statut in ('acceptee','refusee','annulee'));
+  for update using (vers_club = public.mon_club(ligue_id) and statut = 'proposee')
+  with check (vers_club = public.mon_club(ligue_id) and statut in ('acceptee','refusee'));
+drop policy if exists "annuler un echange" on public.echanges;
+create policy "annuler un echange" on public.echanges
+  for update using (de_club = public.mon_club(ligue_id) and statut = 'proposee')
+  with check (de_club = public.mon_club(ligue_id) and statut = 'annulee');
 
 -- Courrier : lisible par les membres ; chacun écrit en son nom.
 drop policy if exists "courrier lisible" on public.courrier;
@@ -173,3 +178,30 @@ create policy "mes abonnements" on public.abonnements_push
 -- Index utiles
 create index if not exists idx_ligues_echeance on public.ligues (echeance) where phase in ('draft','saison','inter');
 create index if not exists idx_echanges_ligue on public.echanges (ligue_id, statut);
+
+-- =====================================================================
+-- Droits d'accès par l'appli (obligatoire sur les projets Supabase récents :
+-- une table n'est plus accessible à l'appli tant qu'on ne l'a pas dit ici).
+-- Les visiteurs non connectés (anon) n'ont accès à rien.
+-- Les joueurs connectés (authenticated) restent limités par les règles ci-dessus.
+-- =====================================================================
+revoke all on public.ligues, public.clubs_ligue, public.ordres, public.encheres,
+              public.gazettes, public.echanges, public.courrier, public.abonnements_push
+  from anon, authenticated;
+
+grant select                         on public.ligues           to authenticated;
+grant select                         on public.clubs_ligue      to authenticated;
+grant select, insert, update, delete on public.ordres           to authenticated;
+grant select, insert, update, delete on public.encheres         to authenticated;
+grant select                         on public.gazettes         to authenticated;
+grant select, insert                 on public.echanges         to authenticated;
+grant update (statut)                on public.echanges         to authenticated;  -- on ne peut changer que la réponse, pas le contenu
+grant select, insert                 on public.courrier         to authenticated;
+grant select, insert, update, delete on public.abonnements_push to authenticated;
+
+grant all on public.ligues, public.clubs_ligue, public.ordres, public.encheres,
+             public.gazettes, public.echanges, public.courrier, public.abonnements_push
+  to service_role;
+
+revoke execute on function public.est_membre(uuid), public.mon_club(uuid) from public, anon;
+grant  execute on function public.est_membre(uuid), public.mon_club(uuid) to authenticated, service_role;

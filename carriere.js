@@ -93,7 +93,9 @@ function progresAge(T,p,gain,reste){
 /* intersaison : chacun prend un an. Les jeunes gagnent du potentiel, les anciens déclinent, certains raccrochent. */
 const PROBA_RETRAITE=a=>a<=31?0:a===32?.15:a===33?.35:a===34?.55:a===35?.8:1;
 function vieillir(S){
-  const bilan={retraites:[],annonces:[],declins:[],croissances:[]};
+  /* un bilan par club humain (en solo : celui du club 0) */
+  const par={};const bilanDe=T=>par[T.id]||(par[T.id]={retraites:[],annonces:[],declins:[],croissances:[]});
+  humains(S).forEach(bilanDe);
   S.teams.forEach(T=>{
     const partent=[];
     T.joueurs.forEach(p=>{
@@ -102,28 +104,28 @@ function vieillir(S){
       if(p.retraite){partent.push(p);return}
       p.age++;
       const a=p.age,rob=(p.h&&p.h.c)||57;
-      if(a<=22){STATS.forEach(k=>{p.cap[k]=clamp(p.cap[k]+ri(0,2),p[k],99)});if(T.id===0)bilan.croissances.push(p.nom)}
+      if(a<=22){STATS.forEach(k=>{p.cap[k]=clamp(p.cap[k]+ri(0,2),p[k],99)});if(estH(T))bilanDe(T).croissances.push(p.nom)}
       if(a>=30){
         const perte={};let tot=0;
         STATS.forEach(k=>{let n=ri(0,2)+(k==='v'?1:0)+(a>=32?ri(1,2):0)+(a>=34?ri(1,2):0);
           if(rob>=75&&R()<.5)n=Math.max(0,n-1);if(rob<=35)n++;
           n=Math.min(n,p[k]-10);if(n>0){p[k]-=n;p.cap[k]=Math.max(p[k],p.cap[k]-n);perte[k]=n;tot+=n}});
-        if(tot&&T.id===0)bilan.declins.push({nom:p.nom,age:a,perte});
+        if(tot&&estH(T))bilanDe(T).declins.push({nom:p.nom,age:a,perte});
       }
       /* annonce de la dernière saison */
-      if(!p.leg||a>=34){const pr=PROBA_RETRAITE(p.leg?a-2:a);if(pr&&R()<pr){p.retraite=true;if(T.id===0)bilan.annonces.push({nom:p.nom,age:a})}}
+      if(!p.leg||a>=34){const pr=PROBA_RETRAITE(p.leg?a-2:a);if(pr&&R()<pr){p.retraite=true;if(estH(T))bilanDe(T).annonces.push({nom:p.nom,age:a})}}
     });
     partent.forEach(p=>{
       T.joueurs=T.joueurs.filter(x=>x!==p);
-      if(T.id===0){
+      if(estH(T)){
         const e={titre:'Jubilé',grand:false,nom:p.nom,race:p.race,tete:p.tete,poste:p.poste,club:T.court,couleur:T.couleur,moi:true,saison:S.saison,
           detail:p.age+' ans, '+pl(p.saisons+1,'saison')+' au club, '+pl(p.buts,'but')+', '+pl(p.matchs,'match')};
-        S.fame.push(e);bilan.retraites.push({nom:p.nom,age:p.age,buts:p.buts,matchs:p.matchs});T.pop=clamp(T.pop+2,5,100);
+        if(S.multi)e.cid=T.id;S.fame.push(e);bilanDe(T).retraites.push({nom:p.nom,age:p.age,buts:p.buts,matchs:p.matchs});T.pop=clamp(T.pop+2,5,100);
       }
     });
-    if(!estH(T)){const D=divDe(S);while(T.joueurs.length<6){const n=nouveauJoueur(S,pick(CLUBS_IA[T.id-1].races),ri(D.ia[0]-2,D.ia[1]-2),{poste:postesManquants(T)[0]||null,jeune:true});T.joueurs.push(n);varierTetes(T,n)}}
+    if(!estH(T)){const D=divDe(S);while(T.joueurs.length<6){const n=nouveauJoueur(S,pick(archDe(T).races),ri(D.ia[0]-2,D.ia[1]-2),{poste:postesManquants(T)[0]||null,jeune:true});T.joueurs.push(n);varierTetes(T,n)}}
   });
-  return bilan;
+  return S.multi?{par}:par[S.teams[0].id];
 }
 
 /* ---------- 3. Profil caché : ce que l'on découvre en montant ---------- */
@@ -180,8 +182,8 @@ function cadreDe(S,p,vu){
 /* ---------- 5. La Coupe du Gourdin ---------- */
 const TOURS_COUPE=[{apres:2,nom:'Quarts de finale',gain:6},{apres:5,nom:'Demi-finales',gain:12},{apres:8,nom:'Finale',gain:25}];
 const COUPE_VICTOIRE=30;
-function equipeInvitee(S,id,d){
-  const D=DIVS[d],arch=ri(0,4),c=CLUBS_IA[arch],n=nomClubDiv(arch,d);
+function equipeInvitee(S,id,d,archChoisi){
+  const D=DIVS[d],arch=archChoisi!==undefined?archChoisi:ri(0,4),c=CLUBS_IA[arch],n=nomClubDiv(arch,d);
   const T={id,nom:n.nom,court:n.court,couleur:c.couleur,ia:c.ia,rep:c.rep,or:0,pop:40,joueurs:[],dernier:'',staff:{},liste:[],invite:true,div:d};
   c.races.forEach((r,i)=>T.joueurs.push(nouveauJoueur(S,r,ri(D.ia[0],D.ia[1]),{poste:POSTES_DEPART[i]})));
   ROLE_IDS.forEach(r=>{const nv=ri(D.staff[0],D.staff[1]);if(nv>=0)T.staff[r]=nouveauStaff(r,Math.min(3,nv))});
@@ -190,41 +192,61 @@ function equipeInvitee(S,id,d){
 function nouvelleCoupe(S){
   const d=S.div||4;
   const dHaut=Math.max(1,d-1),dBas=d===4?3:Math.min(4,d+1);
-  const inv=[equipeInvitee(S,101,dHaut),equipeInvitee(S,102,dBas===d?dHaut:dBas)];
+  let inv;
+  if(S.multi){/* ligue entre amis : tableau à 8 (6 ou 8 clubs) ou à 16 (10 clubs), complété par des invités tous différents */
+    const n=S.teams.length,taille=n<=8?8:16;
+    const modeles=[];[d,dHaut].forEach(dd=>{for(let a=0;a<5;a++)modeles.push([a,dd])});modeles.sort(()=>R()-.5);
+    inv=[];for(let k=0;k<taille-n;k++){const m=modeles[k%modeles.length];inv.push(equipeInvitee(S,101+k,m[1],m[0]))}
+  }else inv=[equipeInvitee(S,101,dHaut),equipeInvitee(S,102,dBas===d?dHaut:dBas)];
   /* l'invité ne doit pas porter le nom d'un club de la ligue */
   inv.forEach(T=>{if(S.teams.some(x=>x.court===T.court)){T.nom+=' (réserve)'}});
-  const ids=[0,1,2,3,4,5,101,102].sort(()=>R()-.5);
+  const ids=S.teams.map(T=>T.id).concat(inv.map(T=>T.id)).sort(()=>R()-.5);
   S.coupe={invites:inv,tableau:[ids],tours:[],vivant:true,vainqueur:null};
+  if(S.multi)S.coupe.plan=planCoupe(ids.length,S.calendrier.length);
   inv.forEach(T=>varierTetes(T));
 }
+/* les tours de coupe : en solo, toujours quarts, demies, finale après les journées 3, 6 et 9.
+   En ligue, on les répartit sur la saison selon sa longueur. */
+function planCoupe(taille,nbJournees){
+  const noms=taille>8?['Huitièmes de finale','Quarts de finale','Demi-finales','Finale']:['Quarts de finale','Demi-finales','Finale'];
+  const gains=taille>8?[4,6,12,25]:[6,12,25];const n=noms.length;let prec=-1;
+  return noms.map((nom,k)=>{let ap=Math.floor((k+1)*nbJournees/(n+1));ap=Math.max(prec+1,Math.min(ap,nbJournees-(n-k)));prec=ap;return{apres:ap,nom,gain:gains[k]}});
+}
+const toursCoupe=S=>(S.coupe&&S.coupe.plan)||TOURS_COUPE;
 const equipeCoupe=(S,id)=>id>=100?S.coupe.invites.find(T=>T.id===id):S.teams[id];
 function optsCoupe(T){
   const ia=T.ia||{brutal:.2,prudent:.2};const r=R();
   return{consigne:r<ia.brutal?'brutal':r<ia.brutal+ia.prudent?'prudent':'normal',pot:false,marqueAuto:R()<.35,tactique:pick(['equilibre','equilibre','sol','pressing','mur','contre']),pression:true,plan:1,ordresAuto:true};
 }
 /* prochain tour de coupe pour l'interface (null si rien à venir) */
-function prochainTourCoupe(S){
+function prochainTourCoupe(S,M){
   if(!S.coupe||S.phase!=='saison')return null;
-  const n=S.coupe.tours.length;if(n>=TOURS_COUPE.length)return null;
-  const t=TOURS_COUPE[n];const paires=S.coupe.tableau[n];
-  const enCourse=paires.includes(0);
-  let adv=null;if(enCourse){const i=paires.indexOf(0);adv=equipeCoupe(S,paires[i%2?i-1:i+1])}
+  const PLAN=toursCoupe(S),id=M?M.id:0;
+  const n=S.coupe.tours.length;if(n>=PLAN.length)return null;
+  const t=PLAN[n];const paires=S.coupe.tableau[n];
+  const enCourse=paires.includes(id);
+  let adv=null;if(enCourse){const i=paires.indexOf(id);adv=equipeCoupe(S,paires[i%2?i-1:i+1])}
   return{tour:t,num:n,journee:t.apres+1,adv,enCourse,maintenant:S.jour===t.apres};
 }
 /* joue un tour de coupe si la journée le prévoit. Renvoie le résumé pour la gazette. */
-function jouerCoupe(S,jour,mesOpts){
+function jouerCoupe(S,jour,mes){
   if(!S.coupe)return null;
-  const n=S.coupe.tours.length;const t=TOURS_COUPE[n];if(!t||t.apres!==jour)return null;
-  const paires=S.coupe.tableau[n],vainqueurs=[],matchs=[];let mien=null,gain=0;
-  const moi=S.teams[0];
+  const PLAN=toursCoupe(S);
+  const n=S.coupe.tours.length;const t=PLAN[n];if(!t||t.apres!==jour)return null;
+  const paires=S.coupe.tableau[n],vainqueurs=[],matchs=[];const par={};
+  const H=humains(S);
   /* faire tourner l'effectif : les remplaçants démarrent le match de coupe */
-  const rot=S.choix.coupeRot;const sauve=moi.joueurs.map(p=>p.titulaire);
-  if(rot){const d=moi.joueurs.filter(dispo);const bancs=d.filter(p=>!p.titulaire);if(bancs.length){d.forEach(p=>p.titulaire=false);bancs.forEach(p=>p.titulaire=true)}}
+  const rots=H.map(moi=>{
+    const rot=G(S,moi).choix.coupeRot;const sauve=moi.joueurs.map(p=>p.titulaire);
+    if(rot){const d=moi.joueurs.filter(dispo);const bancs=d.filter(p=>!p.titulaire);if(bancs.length){d.forEach(p=>p.titulaire=false);bancs.forEach(p=>p.titulaire=true)}}
+    return{moi,rot,sauve};
+  });
+  const optsDe=T=>estH(T)?Object.assign({},mes[T.id],{pot:false,marque:null,pression:true}):optsCoupe(T);
   for(let i=0;i<paires.length;i+=2){
     const A=equipeCoupe(S,paires[i]),B=equipeCoupe(S,paires[i+1]);
     [A,B].forEach(T=>{if(!estH(T))choisirTitulaires(T)});
-    const o=[A.id===0?Object.assign({},mesOpts,{pot:false,marque:null,pression:true}):optsCoupe(A),B.id===0?Object.assign({},mesOpts,{pot:false,marque:null,pression:true}):optsCoupe(B)];
-    let res=simMatch(S,A,B,o);let tab=null;
+    const oA=optsDe(A),oB=optsDe(B);
+    let res=simMatch(S,A,B,[oA,oB]);let tab=null;
     let g=res.score[0]>res.score[1]?0:res.score[0]<res.score[1]?1:-1;
     if(g<0){/* séance de tirs au but : la balle et le mental décident */
       const tir=T=>{const{tit}=onzeDe(T);return tit.reduce((s,p)=>s+p.t*(.7+.6*((p.h&&p.h.m)||57)/95),0)};
@@ -232,22 +254,22 @@ function jouerCoupe(S,jour,mesOpts){
       while(a===b){if(R()<.7)a++;if(R()<.7)b++}
       tab=[a,b];g=a>b?0:1}
     const W=g===0?A:B;vainqueurs.push(W.id);
-    const m={a:A.court,b:B.court,ida:A.id,idb:B.id,score:res.score,tab,v:W.id,moi:A.id===0||B.id===0};
+    const m={a:A.court,b:B.court,ida:A.id,idb:B.id,score:res.score,tab,v:W.id,moi:estH(A)||estH(B)};
     matchs.push(m);
-    if(m.moi){
-      const i0=A.id===0?0:1;
-      mien=Object.assign({},m,{adv:(i0?A:B).nom,gagne:W.id===0,
+    [A,B].forEach((T,i0)=>{
+      if(!estH(T))return;
+      const mien=Object.assign({},m,{adv:(i0?A:B).nom,gagne:W===T,
         buts:res.ev.filter(e=>(e.k==='but'||e.k==='penalty'||e.k==='douce')&&e.c===i0).map(e=>e.j),
         blesses:res.ev.filter(e=>(e.k==='blesse'||e.k==='grave'||e.k==='mort')&&e.c!==i0).map(e=>e.v+(e.k==='mort'?' (mort)':e.k==='grave'?' (gravement)':'')),
-        rot:!!rot});
-      if(W.id===0){gain=Math.round(t.gain*divDe(S).argent)}
-    }
+        rot:!!G(S,T).choix.coupeRot});
+      par[T.id]={mien,gain:W===T?Math.round(t.gain*divDe(S).argent):0};
+    });
   }
-  if(rot)moi.joueurs.forEach((p,i)=>{p.titulaire=sauve[i]});
+  rots.forEach(({moi,rot,sauve})=>{if(rot)moi.joueurs.forEach((p,i)=>{p.titulaire=sauve[i]})});
   /* les blessures et cartons de coupe comptent dès la prochaine journée de championnat */
   const toutes=S.teams.concat(S.coupe.invites);
   toutes.forEach(T=>{
-    T.joueurs.filter(p=>p.mort).forEach(p=>{if(!T.invite)S.morts.push({nom:p.nom,club:T.court,saison:S.saison,jour:jour+1,buts:p.buts,race:p.race,tete:p.tete,leg:p.leg,par:p.mortInfo&&p.mortInfo.par,moi:T.id===0});if(T.id===0)noterDeuil(S,p,jour+1,true)});
+    T.joueurs.filter(p=>p.mort).forEach(p=>{if(!T.invite){const m={nom:p.nom,club:T.court,saison:S.saison,jour:jour+1,buts:p.buts,race:p.race,tete:p.tete,leg:p.leg,par:p.mortInfo&&p.mortInfo.par,moi:estH(T)};if(S.multi)m.cid=T.id;S.morts.push(m)}if(estH(T))noterDeuil(S,p,jour+1,true,T)});
     T.joueurs=T.joueurs.filter(p=>!p.mort);
     T.joueurs.forEach(p=>{delete p.frais;delete p.frais2});
   });
@@ -256,10 +278,10 @@ function jouerCoupe(S,jour,mesOpts){
   if(vainqueurs.length>1)S.coupe.tableau.push(vainqueurs);
   else{
     const W=equipeCoupe(S,vainqueurs[0]);S.coupe.vainqueur=W.court;S.coupe.vainqueurNom=W.nom;
-    if(W.id===0){S.coupes=(S.coupes||0)+1;gain+=Math.round(COUPE_VICTOIRE*divDe(S).argent);moi.pop=clamp(moi.pop+6,5,100);
-      const cap=moi.joueurs.slice().sort((a,b)=>b.sb-a.sb||b.matchs-a.matchs)[0]||{};S.fame.push({titre:'Coupe du Gourdin',grand:true,nom:cap.nom||moi.nom,race:cap.race||'humain',tete:cap.tete,poste:cap.poste||'',club:moi.court,couleur:moi.couleur,moi:true,saison:S.saison,detail:'capitaine de l\'équipe victorieuse de la Coupe du Gourdin'})}
-    fin={vainqueur:W.nom,moi:W.id===0};
+    if(estH(W)){const moi=W,gw=G(S,W);gw.coupes=(gw.coupes||0)+1;par[W.id].gain+=Math.round(COUPE_VICTOIRE*divDe(S).argent);moi.pop=clamp(moi.pop+6,5,100);
+      const cap=moi.joueurs.slice().sort((a,b)=>b.sb-a.sb||b.matchs-a.matchs)[0]||{};const e={titre:'Coupe du Gourdin',grand:true,nom:cap.nom||moi.nom,race:cap.race||'humain',tete:cap.tete,poste:cap.poste||'',club:moi.court,couleur:moi.couleur,moi:true,saison:S.saison,detail:'capitaine de l\'équipe victorieuse de la Coupe du Gourdin'};if(S.multi)e.cid=moi.id;S.fame.push(e)}
+    fin={vainqueur:W.nom,id:W.id};
   }
   S.teams.forEach(T=>{if(!estH(T)&&!T.invite)choisirTitulaires(T)});
-  return{tour:t.nom,matchs,mien,gain,libelle:'Coupe du Gourdin : '+(n===2?'victoire finale':'qualification'),fin,elimine:!!(mien&&!mien.gagne)};
+  return{tour:t.nom,matchs,par,libelle:'Coupe du Gourdin : '+(n===PLAN.length-1?'victoire finale':'qualification'),fin};
 }
