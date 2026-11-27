@@ -169,7 +169,7 @@ function vueAttente(){
     +(estChef()?'':'<button class="discret danger" data-l="quitter" style="margin-top:12px">Quitter cette ligue</button>');
 }
 function vueMembres(){
-  const L=LG.L,T=(L.etat&&L.etat.teams)||[];let h='<div class="effectif">';
+  const L=LG.L,T=(L.etat&&L.etat.teams)||[];let h='<div class="lg-liste">';
   LG.clubs.forEach(c=>{
     const chef=c.user_id&&c.user_id===L.commissaire,moi=c.user_id===LG.uid,vide=!c.user_id;
     h+='<div class="panneau lg-membre" style="--c:'+esc(c.couleur)+'"><div><b>'+esc(c.nom_club)+'</b><span>'+(vide?'Club sans propriétaire (dirigé par l\'ordinateur)':esc(c.pseudo)+(moi?' (vous)':''))+'</span>'
@@ -235,14 +235,22 @@ function preparerOrdres(){
   const L=LG.L,moi=monEquipe();if(!L||!moi||!L.etat||L.etat.draft||L.phase==='inscriptions'){LG.ed=null;return}
   const cle=L.id+':'+(L.version+1);if(LG.ed&&LG.edCle===cle){const ids=moi.joueurs.map(p=>p.id);LG.ed.tit=LG.ed.tit.filter(i=>ids.includes(i));return}
   const o=LG.ordres,c=(moi.gest&&moi.gest.choix)||{};LG.edCle=cle;LG.statutOrdres=o?'ok':'';
-  LG.ed={tit:o&&Array.isArray(o.titulaires)?o.titulaires.slice():moi.joueurs.filter(p=>p.titulaire).map(p=>p.id),
+  LG.ed={ordre:o&&Array.isArray(o.titulaires)?o.titulaires.concat(o.banc||[]):moi.joueurs.map(p=>p.id),
+    tit:o&&Array.isArray(o.titulaires)?o.titulaires.slice():moi.joueurs.filter(p=>p.titulaire).map(p=>p.id),
     entr:Object.assign(Object.fromEntries(moi.joueurs.map(p=>[p.id,p.entr||'repos'])),(o&&o.entr)||{}),
     consigne:(o&&o.consigne)||c.consigne||'normal',tactique:(o&&o.tactique)||c.tactique||'equilibre',pot:!!(o&&o.pot),marque:(o&&o.marque)||null,ordres:Object.assign({},(o&&o.ordres)||{}),coupeRot:!!(o&&o.coupeRot)};
   /* ouvrir la ligue vaut présence : sans cela, le club passerait en pilote automatique complet */
   if(!o&&L.phase==='saison')envoyerOrdres(true);
 }
-function contenuOrdres(){const moi=monEquipe(),e=LG.ed;const tit=e.tit.filter(i=>moi.joueurs.some(p=>p.id===i));
-  return{titulaires:tit,banc:moi.joueurs.filter(p=>!tit.includes(p.id)).map(p=>p.id),entr:e.entr,consigne:e.consigne,tactique:e.tactique,pot:e.pot,marque:e.marque,ordres:e.ordres,coupeRot:e.coupeRot}}
+/* mon équipe telle que je suis en train de la régler (composition, ordre du banc, entraînement), pour l'afficher comme en solo */
+function equipeEditee(){
+  const e=LG.ed,T=JSON.parse(JSON.stringify(monEquipe()));const rang=id=>{const i=e.ordre.indexOf(id);return i<0?99:i};
+  T.joueurs=T.joueurs.map((p,i)=>[p,i]).sort((a,b)=>rang(a[0].id)-rang(b[0].id)||a[1]-b[1]).map(x=>x[0]);
+  T.joueurs.forEach(p=>{p.titulaire=e.tit.includes(p.id);delete p.auBanc;if(e.entr[p.id])p.entr=e.entr[p.id]});
+  return T;
+}
+function contenuOrdres(){const e=LG.ed,T=equipeEditee();const tit=T.joueurs.filter(p=>p.titulaire).map(p=>p.id);
+  return{titulaires:tit,banc:T.joueurs.filter(p=>!p.titulaire).map(p=>p.id),entr:e.entr,consigne:e.consigne,tactique:e.tactique,pot:e.pot,marque:e.marque,ordres:e.ordres,coupeRot:e.coupeRot}}
 async function envoyerOrdres(silencieux){
   const L=LG.L,moi=monEquipe();if(!L||!moi||!LG.ed||L.phase!=='saison')return;
   const c=contenuOrdres();LG.statutOrdres='envoi';
@@ -265,55 +273,58 @@ function vueSaison(){
   return h;
 }
 const sel=(cle,options,val,extra)=>'<select data-sel="'+cle+'"'+(extra||'')+'>'+options.map(([v,l])=>'<option value="'+esc(String(v))+'"'+(String(v)===String(val===null||val===undefined?'':val)?' selected':'')+'>'+esc(l)+'</option>').join('')+'</select>';
-function carteClub(p,moi,pa){
-  const e=LG.ed,out=!dispo(p),tit=e.tit.includes(p.id)&&!out,saison=LG.L.phase==='saison';
-  const etat=p.blesse>0?'Blessé, encore '+pl(p.blesse,'match'):p.suspendu?'Suspendu au prochain match':'';
-  let h='<div class="carte lg-carte lg-joueur'+(tit?' misee':'')+'">'+vignette(p,moi.couleur)+'<div style="min-width:0"><span class="lg-nom">'+esc(p.nom)+'</span>'
-    +'<div class="puces"><span class="puce">'+p.poste+'</span><span class="puce">'+RACES[p.race].nom+'</span>'+(p.trait&&p.trait!=='aucun'&&TRAITS[p.trait]?'<span class="puce"'+aide(TRAITS[p.trait].desc)+'>'+TRAITS[p.trait].nom+'</span>':'')+'<span class="puce">'+p.age+' ans</span>'+(etat?'<span class="puce alerte">'+etat+'</span>':'')+'</div>'
-    +jaugesJoueur(p)+'<div style="font-size:12.5px;color:var(--creme-sourde);margin-top:3px">'+p.sal+' po par match · '+p.buts+' but'+(p.buts>1?'s':'')+' · '+p.matchs+' match'+(p.matchs>1?'s':'')+'</div></div><div class="achat">';
-  if(saison){
-    h+='<button class="discret'+(tit?' or':'')+'" data-l="titulaire" data-id="'+p.id+'"'+(out?' disabled':'')+'>'+(out?(p.blesse>0?'Infirmerie':'Tribune'):tit?'Titulaire':'Remplaçant')+'</button>'
-      +'<label class="lg-mini">Entraînement'+sel('entr:'+p.id,Object.keys(ENTR).map(k=>[k,ENTR[k].nom]),e.entr[p.id]||'repos',p.blesse>0?' disabled':'')+'</label>';
-    if(pa&&(p.poste==='Cogneur'||p.race==='elfenoir')){const o=e.ordres[p.id];const opts=[['','Aucun ordre']].concat(pa.adv.joueurs.map(a=>['cible:'+a.id,'Cibler '+a.nom]));
-      if(p.poste==='Cogneur')moi.joueurs.filter(x=>x!==p).forEach(x=>opts.push(['garde:'+x.id,'Protéger '+x.nom]));
-      h+='<label class="lg-mini">Ordre'+sel('ordre:'+p.id,opts,o?o.k+':'+o.id:'')+'</label>'}
-    if(p.blesse>0)h+='<button class="discret" data-l="soigner" data-id="'+p.id+'"'+(moi.or<COUT_SOIN?' disabled':'')+'>Soigner ('+COUT_SOIN+' po)</button>';
-  }
-  h+='<button class="discret danger lg-petit" data-l="renvoyer" data-id="'+p.id+'">Renvoyer</button></div></div>';
-  return h;
-}
+/* les cartes de joueurs du solo, avec leurs boutons branchés sur la ligue */
+const carteSolo=(p,T,rang,nb,ent)=>carteJoueur(p,T,rang,nb,ent).replace(/data-act="(titulaire|monter|descendre|entr)"/g,'data-l="$1"').replace(/data-act="fiche"/g,'data-l="rien"');
 function vueMonClub(){
-  const L=LG.L,E=L.etat,moi=monEquipe(),e=LG.ed;if(!moi||!e)return'<div class="panneau">Chargement…</div>';
-  const g=moi.gest||{},pa=prochainAdv(),saison=L.phase==='saison';
+  const L=LG.L,E=L.etat,vrai=monEquipe(),e=LG.ed;if(!vrai||!e)return'<div class="panneau">Chargement…</div>';
+  const moi=equipeEditee(),g=vrai.gest||{},pa=prochainAdv(),ent=L.phase==='saison';
   let h='<div class="panneau lg-etat" style="border-left:6px solid '+esc(moi.couleur)+'"><b>'+esc(moi.nom)+'</b><div class="lg-chiffres"><span><b class="num">'+moi.or+' po</b>en caisse</span><span><b class="num">'+moi.joueurs.length+' / '+MAX_EFFECTIF+'</b>joueurs</span><span><b class="num">'+Math.round(moi.pop)+'</b>ferveur</span></div>'
     +'<p class="note">Par match : '+masseSalariale(moi)+' po de salaires'+(coutStaff(moi)?' + '+coutStaff(moi)+' po de staff':'')+'.</p></div>';
-  /* décision en attente */
-  if(g.evt){const ev=g.evt;h+='<div class="panneau affiche evt lg-bandeau"><div class="duel" style="font-size:20px">'+esc(ev.titre)+'</div>'
+  /* rebondissement ou happening : même présentation qu'en solo */
+  if(g.evt){const ev=g.evt;h+='<section class="bloc"><h2>Rebondissement</h2><div class="panneau affiche evt"><div class="duel" style="font-size:20px">'+esc(ev.titre)+'</div>'
     +(ev.p&&ev.p.nom?'<div class="carte" style="margin-top:10px;box-shadow:none">'+vignette(ev.p,'#7a6650')+'<div style="min-width:0"><span class="lg-nom">'+esc(ev.p.nom)+'</span><div class="puces"><span class="puce">'+ev.p.poste+'</span><span class="puce">'+RACES[ev.p.race].nom+'</span></div>'+jaugesJoueur(ev.p)+'</div></div>':'')
-    +'<p style="margin-top:10px">'+esc(ev.texte)+'</p><div class="seg" style="margin-top:10px"><button data-l="evt" data-v="1">'+esc(ev.oui||'Accepter')+'</button><button data-l="evt" data-v="0">'+esc(ev.non||'Refuser')+'</button></div></div>'}
-  /* sponsor */
-  if(!g.sponsor&&g.offresSponsor&&g.offresSponsor.length)h+='<div class="panneau"><b>Choisissez votre sponsor de la saison</b>'+g.offresSponsor.map(id=>{const sp=sponsorDe(id);return sp?'<div class="lg-ligne"><div><b>'+esc(sp.nom)+'</b><p class="note" style="margin:2px 0 0">'+esc(sp.desc)+'</p></div><button class="discret or" data-l="sponsor" data-v="'+id+'">Signer</button></div>':''}).join('')+'</div>';
-  else if(g.sponsor){const sp=sponsorDe(g.sponsor);h+='<div class="panneau"><b>Sponsor : '+esc(sp.nom)+'</b><p class="note" style="margin-top:2px">'+esc(sp.desc)+'</p></div>'}
-  /* réglages de match */
-  if(saison&&pa){
-    const r=g.rapport;
-    h+='<div class="panneau"><b>Prochain match : '+(pa.dom?'réception de ':'déplacement chez ')+esc(pa.adv.nom)+'</b>'
-      +'<p class="note">'+(LG.statutOrdres==='ok'?'Vos ordres sont enregistrés. Vous pouvez les modifier jusqu\'au coup d\'envoi ('+quand((E.horaires||{}).match)+').':LG.statutOrdres==='erreur'?'<span class="alerte">Vos ordres n\'ont pas pu être enregistrés. Vérifiez votre connexion.</span>':'Enregistrement…')+'</p>';
-    if(r){const men=r.menace?pa.adv.joueurs.find(p=>p.id===r.menace):null;h+='<p class="note"><b>Votre stratège :</b> consigne conseillée <b>'+NOM_CONSIGNE[r.conseil]+'</b>'+(r.prediction?' ; il les attend en consigne '+NOM_CONSIGNE[r.prediction]:'')+(r.tacConseil?' ; plan conseillé : '+TACTIQUES[r.tacConseil].nom.toLowerCase():'')+(men?' ; joueur à surveiller : '+esc(men.nom):'')+'.</p>'}
-    h+='<span class="lab">Consigne</span><div class="seg">'+['prudent','normal','brutal'].map(k=>'<button data-l="consigne" data-v="'+k+'" aria-pressed="'+(e.consigne===k)+'">'+k.charAt(0).toUpperCase()+k.slice(1)+(r&&r.conseil===k?' ★':'')+'</button>').join('')+'</div><p class="note">'+CONSIGNES[e.consigne]+'</p>'
-      +'<label class="lg-mini large">Plan de jeu'+sel('tactique',TACTIQUE_IDS.map(k=>[k,TACTIQUES[k].nom]),e.tactique)+'</label><p class="note">'+esc(TACTIQUES[e.tactique].desc)+'</p>'
-      +'<label class="lg-mini large">Marquer un adversaire'+sel('marque',[['','Personne']].concat(pa.adv.joueurs.map(a=>[a.id,a.nom+' ('+POSTES[a.poste].court+')'])),e.marque||'')+'</label>'
-      +'<label class="lg-case"><input type="checkbox" data-case="pot"'+(e.pot?' checked':'')+(moi.or<COUT_POT?' disabled':'')+'> Graisser la patte de l\'arbitre ('+COUT_POT+' po)</label>'
-      +'<label class="lg-case"><input type="checkbox" data-case="coupeRot"'+(e.coupeRot?' checked':'')+'> En coupe, faire jouer les remplaçants</label></div>';
+    +'<p style="margin-top:10px">'+esc(ev.texte)+'</p><div class="seg" style="margin-top:10px"><button data-l="evt" data-v="1">'+esc(ev.oui||'Accepter')+'</button><button data-l="evt" data-v="0">'+esc(ev.non||'Refuser')+'</button></div></div></section>'}
+  if(!g.sponsor&&g.offresSponsor&&g.offresSponsor.length)h+='<section class="bloc"><h2>Sponsor <small>à choisir pour la saison</small></h2><div class="panneau">'+g.offresSponsor.map(id=>{const sp=sponsorDe(id);return sp?'<div class="lg-ligne"><div><b>'+esc(sp.nom)+'</b><p class="note" style="margin:2px 0 0">'+esc(sp.desc)+'</p></div><button class="discret or" data-l="sponsor" data-v="'+id+'">Signer</button></div>':''}).join('')+'</div></section>';
+  if(ent&&pa){
+    const r=g.rapport,adv=pa.adv,tac=e.tactique||'equilibre',potOk=moi.or>=COUT_POT;
+    const men=r&&r.menace?adv.joueurs.find(p=>p.id===r.menace):null;
+    h+='<section class="bloc"><h2>Prochain match</h2><div class="panneau affiche"><div class="duel" style="font-size:20px">'+(pa.dom?esc(moi.court)+' – '+esc(adv.court):esc(adv.court)+' – '+esc(moi.court))+'</div>'
+      +'<p><b>'+esc(adv.nom)+'</b>'+(adv.humain?', le club de '+esc(adv.pseudo||'un ami'):', club de l\'ordinateur')+'. '+(pa.dom?'Vous recevez.':'Vous vous déplacez.')+' Coup d\'envoi : '+quand((E.horaires||{}).match)+'.</p>'
+      +(r?'<p class="note" style="margin-top:6px"><b>Votre stratège :</b> consigne conseillée <b>'+NOM_CONSIGNE[r.conseil]+'</b>'+(r.prediction?' ; il les attend en consigne '+NOM_CONSIGNE[r.prediction]:'')+(r.tacConseil?' ; plan conseillé : '+TACTIQUES[r.tacConseil].nom.toLowerCase():'')+(men?' ; joueur à surveiller : '+esc(men.nom):'')+'.</p>':'')+'</div></section>';
+    /* Vos ordres : exactement les mêmes réglages qu'en solo */
+    h+='<section class="bloc"><h2>Vos ordres</h2><div class="panneau choix">'
+      +'<div><span class="t">Consigne de match</span><div class="seg">'+['prudent','normal','brutal'].map(k=>'<button data-l="consigne" data-v="'+k+'" aria-pressed="'+(e.consigne===k)+'">'+k.charAt(0).toUpperCase()+k.slice(1)+(r&&r.conseil===k?' ★':'')+'</button>').join('')+'</div><p class="effet">'+CONSIGNES[e.consigne]+(r?' ★ = conseil du stratège.':'')+'</p></div>'
+      +'<div><span class="t">Plan de jeu</span><div class="seg tactiques">'+TACTIQUE_IDS.map(k=>'<button data-l="tactique" data-v="'+k+'" aria-pressed="'+(tac===k)+'" title="'+esc(TACTIQUES[k].desc)+'">'+TACTIQUES[k].court+(r&&r.tacConseil===k?' ★':'')+'</button>').join('')+'</div><p class="effet">'+esc(TACTIQUES[tac].desc)+(TACTIQUES[tac].bat?' Contre le '+TACTIQUES[TACTIQUES[tac].bat].nom.toLowerCase()+', mais se fait contrer par le '+TACTIQUES[contreDe(tac)].nom.toLowerCase()+'.':'')+'</p>'
+        +'<details class="regles"><summary>Qui bat qui ?</summary><p class="note" style="margin:6px 0 0">Chaque plan en contre un autre, et celui qui contre gagne +7 % en attaque et en défense. Le cycle : Jeu au sol → bat la Contre-attaque → qui bat le Pressing → qui bat le Jeu aérien → qui bat le Mur défensif → qui bat le Jeu au sol. « Équilibré » ne gagne ni ne perd ce duel.</p></details></div>'
+      +'<div><span class="t">Marquage individuel</span><select data-sel="marque" aria-label="Joueur adverse à marquer"><option value="">Personne</option>'+adv.joueurs.map(p=>'<option value="'+p.id+'"'+(e.marque===p.id?' selected':'')+'>'+esc(p.nom)+' · '+p.poste.toLowerCase()+' · '+pl(p.sb,'but')+(r&&r.menace===p.id?' ★':'')+'</option>').join('')+'</select><p class="effet">'+(e.marque?'Le joueur marqué perd environ '+Math.round((1-kk(moi,'strat','marquage'))*100)+' % d\'efficacité ; votre attaque perd 3 %.':'Collez un joueur aux basques du meilleur adversaire. Plus votre stratège est bon, plus le marquage est serré.')+'</p></div>'
+      +'<div><span class="t">Arbitre</span><div class="seg"><button data-l="pot" data-v="0" aria-pressed="'+(!e.pot)+'">Honnête</button><button data-l="pot" data-v="1" aria-pressed="'+(!!e.pot)+'" '+(potOk?'':'disabled')+'>Pot-de-vin ('+COUT_POT+' po)</button></div><p class="effet">'+(e.pot?"L'arbitre gardera ses cartons en poche, et sifflera peut-être en votre faveur. Petit risque de scandale.":potOk?'Vos fautes seront jugées normalement.':'Caisse trop maigre pour corrompre qui que ce soit.')+'</p></div>'
+      +'<div><span class="t">Coupe du Gourdin</span><div class="seg"><button data-l="coupeRot" data-v="0" aria-pressed="'+(!e.coupeRot)+'">Titulaires</button><button data-l="coupeRot" data-v="1" aria-pressed="'+(!!e.coupeRot)+'">Remplaçants</button></div><p class="effet">'+(e.coupeRot?'En coupe, vos remplaçants débutent : les titulaires restent frais pour le championnat.':'En coupe, vous alignez la même équipe qu\'en championnat.')+'</p></div>';
+    const speciaux=moi.joueurs.filter(p=>dispo(p)&&(p.poste==='Cogneur'||p.race==='elfenoir'));
+    if(speciaux.length)h+='<div><span class="t">Ordres individuels</span>'+speciaux.map(p=>{const o=e.ordres[p.id];const opts=[['','Aucun ordre']].concat(adv.joueurs.map(a=>['cible:'+a.id,'Cibler '+a.nom]));
+      if(p.poste==='Cogneur')moi.joueurs.filter(x=>x.id!==p.id).forEach(x=>opts.push(['garde:'+x.id,'Protéger '+x.nom]));
+      return'<label class="lg-mini large">'+esc(p.nom)+sel('ordre:'+p.id,opts,o?o.k+':'+o.id:'')+'</label>'}).join('')+'<p class="effet">Un cogneur ou un elfe noir peut s\'acharner sur un adversaire ; un cogneur peut aussi servir de garde du corps à un coéquipier.</p></div>';
+    h+='</div><p class="note">'+(LG.statutOrdres==='ok'?'Vos ordres sont enregistrés à chaque changement. Vous pouvez les modifier jusqu\'au coup d\'envoi.':LG.statutOrdres==='erreur'?'<span class="alerte">Vos ordres n\'ont pas pu être enregistrés. Vérifiez votre connexion.</span>':'Enregistrement…')+'</p></section>';
   }
-  /* effectif */
-  const nbTit=e.tit.filter(i=>{const p=moi.joueurs.find(x=>x.id===i);return p&&dispo(p)}).length;
-  h+='<h3 class="soustitre">Effectif'+(saison?' · '+nbTit+' titulaire'+(nbTit>1?'s':'')+' sur 5':'')+'</h3>'+(saison&&nbTit<5?'<p class="note">S\'il manque des titulaires au coup d\'envoi, les meilleurs remplaçants disponibles entrent automatiquement.</p>':'')
-    +'<div class="effectif lg-vivier">'+moi.joueurs.slice().sort((a,b)=>(e.tit.includes(b.id)-e.tit.includes(a.id))||POSTE_IDS.indexOf(a.poste)-POSTE_IDS.indexOf(b.poste)).map(p=>carteClub(p,moi,pa)).join('')+'</div>';
-  /* stade et staff */
-  h+='<h3 class="soustitre">Stade</h3><div class="panneau">'+STADE_IDS.map(k=>{const n=nivStade(moi,k),c=STADE[k].cout[n];return'<div class="lg-ligne"><div><b>'+STADE[k].nom+' : '+STADE[k].niv[n]+'</b><p class="note" style="margin:2px 0 0">'+STADE[k].effet(n)+'</p></div>'+(n<3?'<button class="discret or" data-l="stade" data-v="'+k+'"'+(moi.or<c?' disabled':'')+'>Améliorer ('+c+' po)</button>':'<span class="note">Maximum</span>')+'</div>'}).join('')+'</div>';
-  h+='<h3 class="soustitre">Staff</h3><div class="panneau">'+ROLE_IDS.map(r=>{const st=moi.staff[r];let x='<div class="lg-ligne"><div><b>'+ROLES[r].nom+'</b><p class="note" style="margin:2px 0 0">'+(st?esc(st.nom)+' · niveau '+(st.niv+1)+' sur 5 · '+st.sal+' po par match':'Poste vacant')+'</p></div>'+(st?'<button class="discret danger lg-petit" data-l="licencier" data-v="'+r+'">Licencier</button>':'')+'</div>';
-    ((g.candidats&&g.candidats[r])||[]).forEach((c,i)=>{x+='<div class="lg-ligne lg-cand"><div><span>'+esc(c.nom)+' · niveau '+(c.niv+1)+' sur 5</span><p class="note" style="margin:2px 0 0">Prime '+c.prime+' po, puis '+c.sal+' po par match'+(st?' (remplace '+esc(st.nom)+')':'')+'</p></div><button class="discret" data-l="embaucher" data-v="'+r+'" data-id="'+i+'"'+(moi.or<c.prime?' disabled':'')+'>Embaucher</button></div>'});return x}).join('')+'</div>';
+  h+='<section class="bloc"><h2>Composition <small>selon vos 5 titulaires</small></h2><div class="panneau">'+blocEtats(moi)+'</div></section>';
+  /* effectif : mêmes cartes et mêmes boutons qu'en solo */
+  const{tit,reste}=onzeDe(moi);const marques=moi.joueurs.filter(p=>dispo(p)&&p.titulaire).length,valides=moi.joueurs.filter(dispo).length;const out=moi.joueurs.filter(p=>!dispo(p));
+  h+='<section class="bloc"><h2>Effectif <small>'+moi.joueurs.length+' joueurs · '+Math.min(5,tit.length)+' titulaires</small></h2>';
+  if(ent)h+='<div class="tous"><button class="discret or" data-l="auto" title="Choisit 5 titulaires équilibrés : au moins un joueur par poste, les plus en forme et les plus forts.">Composition automatique</button></div>'
+    +'<div class="tous"><span>Entraînement de tous :</span>'+Object.keys(ENTR).map(k=>'<button data-l="entr-tous" data-v="'+k+'">'+ENTR[k].nom+'</button>').join('')+'</div>';
+  h+='<div class="effectif">'+tit.slice().sort((a,b)=>POSTE_IDS.indexOf(a.poste)-POSTE_IDS.indexOf(b.poste)||puissance(b)-puissance(a)).map(p=>carteSolo(p,moi,0,0,ent)).join('')
+    +(reste.length?'<p class="soustitre">Banc, dans l\'ordre d\'entrée en jeu</p>'+reste.map((p,i)=>carteSolo(p,moi,i+1,reste.length,ent)).join(''):'')
+    +(out.length?'<p class="soustitre">Indisponibles</p>'+out.map(p=>carteSolo(p,moi,0,0,ent)).join(''):'')+'</div>';
+  if(ent){
+    if(marques<5&&valides>=5)h+='<p class="note alerte">Vous n\'avez désigné que '+pl(marques,'titulaire')+' : les premiers du banc complètent l\'équipe.</p>';
+    if(valides<5)h+='<p class="note alerte">Moins de 5 joueurs disponibles : des stagiaires compléteront l\'équipe. Passez au mercato.</p>';
+    h+='<p class="note">L\'entraînement de chaque joueur est gardé d\'une journée à l\'autre. La barre claire derrière chaque note montre son plafond : plus on s\'en approche, plus les progrès ralentissent.</p>';
+  }
+  h+='</section><section class="bloc"><h2>Infirmerie et départs</h2><div class="panneau">'+moi.joueurs.map(p=>'<div class="lg-ligne"><div><b>'+esc(p.nom)+'</b><p class="note" style="margin:2px 0 0">'+(p.blesse>0?'Blessé, encore '+pl(p.blesse,'match'):p.suspendu?'Suspendu au prochain match':'En état de jouer')+' · '+p.sal+' po par match</p></div><div class="lg-actions">'
+    +(p.blesse>0?'<button class="discret" data-l="soigner" data-id="'+p.id+'"'+(moi.or<COUT_SOIN?' disabled':'')+'>Soigner ('+COUT_SOIN+' po)</button>':'')+'<button class="discret danger lg-petit" data-l="renvoyer" data-id="'+p.id+'">Renvoyer</button></div></div>').join('')+'</div></section>';
+  if(g.sponsor){const sp=sponsorDe(g.sponsor);h+='<section class="bloc"><h2>Sponsor</h2><div class="panneau"><b>'+esc(sp.nom)+'</b><p class="note" style="margin-top:2px">'+esc(sp.desc)+'</p></div></section>'}
+  h+='<section class="bloc"><h2>Stade</h2><div class="panneau">'+STADE_IDS.map(k=>{const n=nivStade(moi,k),c=STADE[k].cout[n];return'<div class="lg-ligne"><div><b>'+STADE[k].nom+' : '+STADE[k].niv[n]+'</b><p class="note" style="margin:2px 0 0">'+STADE[k].effet(n)+'</p></div>'+(n<3?'<button class="discret or" data-l="stade" data-v="'+k+'"'+(moi.or<c?' disabled':'')+'>Améliorer ('+c+' po)</button>':'<span class="note">Maximum</span>')+'</div>'}).join('')+'</div></section>';
+  h+='<section class="bloc"><h2>Staff</h2><div class="panneau">'+ROLE_IDS.map(r=>{const st=moi.staff[r];let x='<div class="lg-ligne"><div><b>'+ROLES[r].nom+'</b><p class="note" style="margin:2px 0 0">'+(st?esc(st.nom)+' · niveau '+(st.niv+1)+' sur 5 · '+st.sal+' po par match':'Poste vacant')+'</p></div>'+(st?'<button class="discret danger lg-petit" data-l="licencier" data-v="'+r+'">Licencier</button>':'')+'</div>';
+    ((g.candidats&&g.candidats[r])||[]).forEach((c,i)=>{x+='<div class="lg-ligne lg-cand"><div><span>'+esc(c.nom)+' · niveau '+(c.niv+1)+' sur 5</span><p class="note" style="margin:2px 0 0">Prime '+c.prime+' po, puis '+c.sal+' po par match'+(st?' (remplace '+esc(st.nom)+')':'')+'</p></div><button class="discret" data-l="embaucher" data-v="'+r+'" data-id="'+i+'"'+(moi.or<c.prime?' disabled':'')+'>Embaucher</button></div>'});return x}).join('')+'</div></section>';
   return h;
 }
 function vueMercato(){
@@ -437,8 +448,19 @@ document.addEventListener('click',ev=>{
       if(moi.joueurs.length>=MAX_EFFECTIF){informer('Effectif complet','Vous avez déjà '+MAX_EFFECTIF+' joueurs.');break}
       API.miser(L.id,moi.id,L.etat.encheres.tour,id,m).then(r=>{if(r.erreur)informer('Impossible',r.erreur);else{LG.mises[id]=m;delete LG.saisie[id];Son.jouer('piece')}redessiner()});return}
     case'pageG':LG.pageG=Number(v);break;
-    case'titulaire':{const e=LG.ed;if(!e)break;const i=e.tit.indexOf(id);if(i>=0)e.tit.splice(i,1);else{const moi=monEquipe();if(e.tit.filter(x=>{const p=moi.joueurs.find(q=>q.id===x);return p&&dispo(p)}).length>=5){informer('Cinq titulaires au maximum','Passez d\'abord un titulaire remplaçant.');break}e.tit.push(id)}envoyerOrdres();break}
+    case'rien':return;
+    case'titulaire':{const e=LG.ed;if(!e)break;const T=equipeEditee(),p=T.joueurs.find(x=>x.id===id);if(!p||!dispo(p))break;
+      if(p.titulaire)e.tit=e.tit.filter(x=>x!==id);
+      else{if(T.joueurs.filter(x=>dispo(x)&&x.titulaire).length>=5){informer('Déjà 5 titulaires','Retirez d\'abord un titulaire (touchez son bouton « Titulaire »), puis choisissez qui le remplace.');break}e.tit.push(id)}
+      Son.jouer('bascule');envoyerOrdres();break}
+    case'monter':case'descendre':{const e=LG.ed;if(!e)break;const T=equipeEditee();deplacer(T,id,a==='monter'?-1:1);e.ordre=T.joueurs.map(p=>p.id);envoyerOrdres();break}
+    case'entr':if(LG.ed){LG.ed.entr[id]=v;envoyerOrdres()}break;
+    case'entr-tous':if(LG.ed){monEquipe().joueurs.forEach(p=>{LG.ed.entr[p.id]=(v!=='repos'&&p[v]>=p.cap[v])?conseilEntr(p):v});envoyerOrdres()}break;
+    case'auto':if(LG.ed){const T=equipeEditee();choisirTitulaires(T);LG.ed.tit=T.joueurs.filter(p=>p.titulaire).map(p=>p.id);Son.jouer('bascule');envoyerOrdres()}break;
     case'consigne':if(LG.ed){LG.ed.consigne=v;envoyerOrdres()}break;
+    case'tactique':if(LG.ed){LG.ed.tactique=v;envoyerOrdres()}break;
+    case'pot':if(LG.ed){LG.ed.pot=v==='1';envoyerOrdres()}break;
+    case'coupeRot':if(LG.ed){LG.ed.coupeRot=v==='1';envoyerOrdres()}break;
     case'evt':faire({action:'gestion',ligue:L.id,geste:{k:'evenement',oui:v==='1'}},async r=>{if(r.msg)informer('C\'est fait',r.msg)});return;
     case'sponsor':faire({action:'gestion',ligue:L.id,geste:{k:'sponsor',id:v}});return;
     case'stade':faire({action:'gestion',ligue:L.id,geste:{k:'stade',id:v}});return;
