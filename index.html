@@ -29,7 +29,12 @@
 <script src="jeu.js"></script>
 <script>
 /* appli installable : seulement quand le jeu est servi depuis son propre site (pas dans l'aperçu Claude) */
-if('serviceWorker' in navigator&&!window.claude&&location.protocol==='https:'){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
+if('serviceWorker' in navigator&&!window.claude&&location.protocol==='https:'){
+  /* quand une nouvelle version de l'appli s'installe, on recharge une fois pour l'afficher */
+  var dejaControle=!!navigator.serviceWorker.controller,recharge=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){if(dejaControle&&!recharge){recharge=true;location.reload()}});
+  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(r){r.update()}).catch(function(){})});
+}
 </script>
 </body>
 </html>
