@@ -540,7 +540,7 @@ function vueTitre(){
     +'<div class="menu">'
     +(r?'<button class="gros" data-act="ouvrir" data-v="'+r.id+'">Continuer<small>'+esc(r.nom)+' · '+etatPartie(r)+'</small></button>':'<button class="gros" data-act="ecran" data-v="nouvelle">Fonder mon premier club</button>')
     +'<button class="menu-btn" data-act="ecran" data-v="solo"><b>Partie solo</b><small>'+(L.length?pl(L.length,'équipe enregistrée','équipes enregistrées')+' · nouvelle équipe':'Votre club contre 5 clubs de l\'ordinateur')+'</small></button>'
-    +'<button class="menu-btn" data-act="ecran" data-v="multi"><b>Multijoueur <span class="bientot">bientôt</span></b><small>Une ligue entre amis</small></button>'
+    +'<button class="menu-btn" data-act="ecran" data-v="multi"><b>Multijoueur <span class="bientot">en test</span></b><small>Une ligue entre amis : créer, rejoindre, draft</small></button>'
     +'<button class="menu-btn" data-act="ecran" data-v="reglages"><b>Réglages</b><small>Son, apparence, tutoriel</small></button>'
     +'</div><p class="pied">Jeu privé entre amis · aucune publicité · sauvegardes gardées sur cet appareil</p></section>';
 }
@@ -565,6 +565,7 @@ function vueAccueil(){
     +'<button class="gros" data-act="creer">Fonder le club</button><p class="note">Vous recevez 5 joueurs de ce peuple et 2 d\'ailleurs : 2 cogneurs, 2 coureurs, 1 passeur et 2 remplaçants. Une saison compte 10 journées face à 5 clubs dirigés par l\'ordinateur. Votre club est sauvegardé automatiquement.</p></section>';
 }
 function vueMulti(){
+  if(typeof vueLigueAmis==='function')return vueLigueAmis(); /* les écrans de ligue sont dans ligue-ui.js */
   return'<section class="ecran-menu">'+retourTitre('Multijoueur')+'<div class="panneau multi"><span class="bientot grand">En préparation</span>'
     +'<p>Le but final de Wood Bowl : <b>une ligue entre amis</b>, où chacun dirige son club depuis son téléphone.</p><ul>'
     +'<li><b>Rejoindre</b><span>On entre dans la ligue au début d\'une saison, avec un code d\'invitation.</span></li>'

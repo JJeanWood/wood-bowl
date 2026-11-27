@@ -891,3 +891,25 @@ li.mien{color:var(--creme)}
   #app{padding-top:env(safe-area-inset-top)}
   .onglets{padding-bottom:env(safe-area-inset-bottom)}
 }
+
+/* ================= Ligue entre amis ================= */
+.lg-couleurs{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px}
+.lg-couleurs button{width:38px;height:38px;border-radius:50%;background:var(--c);border:3px solid transparent;box-shadow:0 0 0 1px var(--trait)}
+.lg-couleurs button[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 0 2px var(--or,#f2c230)}
+.lg-ligue{border-left:6px solid var(--c);margin-top:8px}
+.lg-compte{margin-top:18px}.lg-compte hr{border:0;border-top:1px solid var(--trait);margin:14px 0}
+.lg-code{font-family:var(--etroit,inherit);font-size:20px;font-weight:700;letter-spacing:.04em;margin:8px 0;word-break:break-word;user-select:all}
+.lg-code.grand{font-size:40px;letter-spacing:.18em;text-align:center;margin:6px 0 10px}
+.lg-invite{text-align:center}.lg-invite .t{display:block;text-transform:uppercase;font-size:12.5px;letter-spacing:.08em;color:var(--creme-sourde)}
+.lg .panneau{margin-top:10px}.lg-bandeau{border-color:var(--or,#f2c230)}
+.lg-membre{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;border-left:6px solid var(--c)}
+.lg-membre>div:first-child{display:flex;flex-direction:column;min-width:0}.lg-membre span{font-size:14.5px}.lg-membre small{font-size:12.5px;color:var(--creme-sourde)}
+.lg-actions{display:flex;flex-wrap:wrap;gap:6px}
+.lg-chiffres{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 2px;text-align:center}
+.lg-chiffres span{display:flex;flex-direction:column;font-size:12.5px;color:var(--creme-sourde)}.lg-chiffres b{font-size:20px;color:var(--creme,#f3ead8)}
+.lg-filtres{margin:12px 0 10px;grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(90px,1fr))}
+.lg-nom{display:block;font-weight:800;font-size:16.5px;line-height:1.15;margin-bottom:3px}
+.lg-carte.misee{outline:2px solid var(--or,#f2c230);outline-offset:-2px}
+.lg-carte .achat{gap:5px}
+.lg-mise{width:76px;padding:8px 6px;border-radius:4px;border:1px solid var(--trait);background:var(--planche);color:inherit;font:inherit;font-weight:700;text-align:center}
+.lg-class td{padding:4px 6px}.lg-class tr.moi td{color:var(--or,#f2c230)}.lg-class small{opacity:.7}

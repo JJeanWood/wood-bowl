@@ -114,6 +114,7 @@ Reste à faire côté serveur : notifications push ; légendes sur mesure des pr
 2. Moteur multi : **fait** (voir plus haut).
    Supabase : projet créé par Juju le 27 nov. 2026, base collée, « Confirm email » désactivé ; adresse et clé publique dans `multijoueur/config.js`.
 3. Fonctions serveur `tick` et `ligue` : **écrites**, mise en service en cours (jeton Supabase dans GitHub, collage de `supabase2.sql`).
-4. Écrans de l'appli : créer ou rejoindre une ligue, draft, mercato, gazette de ligue, échanges, réglages du commissaire.
+4. Écrans de l'appli (`ligue-ui.js`). **Fait** : compte anonyme + code secret de 4 mots, créer, rejoindre, salle d'attente, membres (adjoint, exclure, confier), draft, boutons du commissaire (lancer, pause, reprendre), écran de saison provisoire (classement, horaires). **Reste** : vestiaire de ligue (ordres), mercato, gazette de ligue, échanges, réglages du rythme, écran Créateur (happenings), courrier.
+   Comptes : connexion anonyme Supabase (« Allow anonymous sign-ins » activé) ; le code secret est haché côté appareil et rangé dans la table privée `comptes` ; `retrouver` réunit l'ancien compte et le nouvel appareil.
 5. Notifications.
 6. Ligue d'essai Juju + un compte de test, puis invitation des amis.

@@ -3,37 +3,7 @@
 /* avec --module : teste le fichier assemblé pour Supabase (supabase/functions/_shared/jeu.js), tel qu'il sera exécuté là-bas */
 let J=process.argv.includes('--module')?null:require('./construire.js').charger();
 let erreurs=0;const verifier=(c,msg)=>{if(!c){erreurs++;if(erreurs<=30)console.log('  ✗',msg)}};
-function fausseBase(){
-  const B={reprises:[],ligues:[],clubs:[],etats:{},ordres:[],encheres:[],gazettes:[],vues:{},echanges:[],courrier:[],n:0};
-  const copie=x=>x===undefined?x:JSON.parse(JSON.stringify(x));
-  const db={B,
-    async ligue(id){return copie(B.ligues.find(l=>l.id===id)||null)},
-    async ligueParCode(code){return copie(B.ligues.find(l=>l.code===code)||null)},
-    async liguesDues(isoNow){return copie(B.ligues.filter(l=>l.echeance&&l.echeance<=isoNow&&['draft','saison','inter'].includes(l.phase)))},
-    async creerLigue(row){if(B.ligues.some(l=>l.code===row.code))return null;const L=Object.assign({id:'L'+(++B.n),etape:null,etat:null,version:0,echeance:null},copie(row));B.ligues.push(L);return copie(L)},
-    async majLigue(id,ch){Object.assign(B.ligues.find(l=>l.id===id),copie(ch))},
-    async clubs(id){return copie(B.clubs.filter(c=>c.ligue_id===id))},
-    async ajouterClub(row){B.clubs.push(Object.assign({dernier_passage:null},copie(row)))},
-    async majClub(l,idx,ch){Object.assign(B.clubs.find(c=>c.ligue_id===l&&c.club_index===idx),copie(ch))},
-    async supprimerClub(l,idx){B.clubs=B.clubs.filter(c=>!(c.ligue_id===l&&c.club_index===idx))},
-    async reprise(code){return copie(B.reprises.find(r=>r.code===code)||null)},
-    async poserReprise(l,idx,code){B.reprises=B.reprises.filter(r=>!(r.ligue_id===l&&r.club_index===idx));B.reprises.push({code,ligue_id:l,club_index:idx})},
-    async oterReprise(l,idx){B.reprises=B.reprises.filter(r=>!(r.ligue_id===l&&r.club_index===idx))},
-    async etat(id){const e=B.etats[id];return e?{etat:copie(e.etat),rev:e.rev}:{etat:null,rev:0}},
-    async creerEtat(id,etat){if(B.etats[id])return false;B.etats[id]={etat:copie(etat),rev:1};return true},
-    async sauverEtat(id,etat,rev){const e=B.etats[id];if(!e||e.rev!==rev)return false;e.etat=copie(etat);e.rev++;return true},
-    async ordres(l,j){const o={};B.ordres.filter(x=>x.ligue_id===l&&x.journee===j).forEach(x=>{o[x.club_index]=copie(x.contenu)});return o},
-    async encheres(l,tour){return B.encheres.filter(x=>x.ligue_id===l&&x.tour===tour).map(x=>({club:x.club_index,joueur:x.joueur_id,montant:x.montant}))},
-    async viderEncheres(l,tour){B.encheres=B.encheres.filter(x=>!(x.ligue_id===l&&x.tour===tour))},
-    async publierGazettes(l,rows){rows.forEach(r=>B.gazettes.push(Object.assign({ligue_id:l},copie(r))))},
-    async majVues(l,rows){rows.forEach(r=>{B.vues[l+':'+r.club_index]=copie(r.vue)})},
-    async echange(id){return copie(B.echanges.find(e=>e.id===id)||null)},
-    async majEchange(id,ch){Object.assign(B.echanges.find(e=>e.id===id),ch)},
-    async courrier(l){return B.courrier.filter(c=>c.ligue_id===l).map(c=>({club:c.club_index,texte:c.texte}))},
-    async viderCourrier(l){B.courrier=B.courrier.filter(c=>c.ligue_id!==l)},
-  };
-  return db;
-}
+const{fausseBase}=require('./fausse_base.js');
 const H=3600000;
 (async()=>{
   if(!J)J=(await import(require('path').join(__dirname,'../supabase/functions/_shared/jeu.js'))).Jeu;
@@ -144,8 +114,16 @@ const H=3600000;
   const t0=now;let m=0;for(let k=0;k<8;k++){now=new Date(pub().echeance).getTime()+1000;await J.tick(db,now);if(pub().etape==='mercato')m++}
   verifier(m>=3&&now-t0<4*24*H,'les journées s\'enchaînent');
   const d1=new Date(pub().echeance).getTime()-now;verifier(d1>0&&d1<=12*60000,'prochaine étape dans moins de 12 minutes');
+  /* --- code secret : retrouver ses clubs sur un autre appareil --- */
+  const h1='a'.repeat(64);verifier((await D('u2',{action:'code',hash:h1})).ok,'code secret enregistré');
+  verifier((await D('u5',{action:'code',hash:h1})).erreur,'un code déjà pris est refusé');
+  verifier((await D('u30',{action:'retrouver',hash:'b'.repeat(64)})).erreur,'code inconnu refusé');
+  const idx2=B.clubs.find(x=>x.user_id==='u2').club_index;
+  verifier((await D('u30',{action:'retrouver',hash:h1})).ok&&B.clubs.find(x=>x.club_index===idx2).user_id==='u30'&&!B.clubs.some(x=>x.user_id==='u2'),'le nouvel appareil récupère le club');
+  verifier((await D('u30',{action:'gestion',ligue:L,geste:{k:'stade',id:'buvette'}})).erreur!=='Vous ne faites pas partie de cette ligue.','et peut le diriger');
+  verifier((await D('u1',{action:'retrouver',hash:h1})).erreur,'pas de fusion si l\'appareil a déjà un club dans la même ligue');
   /* --- deux écritures en même temps : une seule passe, l'autre recommence --- */
-  const rs=await Promise.all([D('u1',{action:'gestion',ligue:L,geste:{k:'stade',id:'buvette'}}),D('u2',{action:'gestion',ligue:L,geste:{k:'stade',id:'tribunes'}})]);
+  const rs=await Promise.all([D('u1',{action:'gestion',ligue:L,geste:{k:'stade',id:'buvette'}}),D('u30',{action:'gestion',ligue:L,geste:{k:'stade',id:'tribunes'}})]);
   const S2=priv();verifier(rs.every(r=>r.ok||r.erreur),'écritures simultanées sans casse');
   console.log(erreurs?'ÉCHEC : '+erreurs+' problème(s)':'Tout est bon : inscriptions, draft, saison complète à heures fixes, pause, exclusion, reprise, happenings, soirée éclair.');
   process.exit(erreurs?1:0);

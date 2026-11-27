@@ -47,6 +47,32 @@ alter table public.reprises enable row level security;
 revoke all on public.reprises from anon, authenticated;
 grant all on public.reprises to service_role;
 
+-- ---------- Comptes : l'empreinte du code secret de 4 mots, pour retrouver ses clubs sur un autre appareil. PRIVÉ ----------
+create table if not exists public.comptes (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  code_hash  text not null unique,
+  cree_le    timestamptz not null default now()
+);
+alter table public.comptes enable row level security;
+revoke all on public.comptes from anon, authenticated;
+grant all on public.comptes to service_role;
+-- réunit deux comptes (ancien appareil -> nouvel appareil), tout ou rien
+create or replace function public.transferer_compte(ancien uuid, nouveau uuid) returns boolean
+language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from clubs_ligue a join clubs_ligue b on a.ligue_id = b.ligue_id where a.user_id = ancien and b.user_id = nouveau) then
+    return false;
+  end if;
+  update clubs_ligue set user_id = nouveau where user_id = ancien;
+  update ligues set commissaire = nouveau where commissaire = ancien;
+  delete from abonnements_push where user_id = ancien;
+  delete from comptes where user_id = nouveau;
+  update comptes set user_id = nouveau where user_id = ancien;
+  return true;
+end $$;
+revoke execute on function public.transferer_compte(uuid, uuid) from public, anon, authenticated;
+grant  execute on function public.transferer_compte(uuid, uuid) to service_role;
+
 -- ---------- Les enchères d'un tour clos et les ordres d'une journée jouée ne se modifient plus ----------
 -- (le nom du tour en cours est publié par le serveur dans ligues.etat -> 'encheres' ->> 'tour')
 drop policy if exists "mes encheres" on public.encheres;

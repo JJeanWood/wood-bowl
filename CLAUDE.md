@@ -15,7 +15,8 @@ Matchs simulés, gazette « L'Écho du Gourdin », portraits façon cartes de ba
 
 ## Architecture
 - `moteur.js` : règles, création des joueurs, simulation (`simMatch`), journée (`jouerJournee`), intersaison, marché, prêt d'urgence, ordres (cibler / garde du corps).
-- `ligue.js` : ligue entre amis (draft, enchères, marché commun, ordres, pilote automatique, vue de chaque joueur). Pas encore chargé par `index.html`.
+- `ligue.js` : ligue entre amis (draft, enchères, marché commun, ordres, pilote automatique, vue de chaque joueur). Utilisé par le serveur ; pas chargé par `index.html`.
+- `ligue-ui.js` : écrans de la ligue entre amis (écran « multi » de l'écran titre). Boutons en `data-l`, traités dans ce fichier. Seul l'objet `API` parle à Supabase ; les tests le remplacent (`window.__API_LIGUE`). Test : `python3 multijoueur/test_ecrans.py` (navigateur, faux serveur dans la page).
 - `legendes.js` : 36 joueurs légendaires et leurs pouvoirs.
 - `carriere.js` : divisions (4 → 1), âge, déclin, retraite, parrainage, profil caché (mental, régularité, robustesse), cadres de portrait, Coupe du Gourdin.
 - `gazette.js`, `gazette2.js` : textes de la gazette.

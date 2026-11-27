@@ -67,5 +67,9 @@ export function base(sb: any) {
       return (ok(await sb.from('courrier').select('club_index,texte,cree_le').eq('ligue_id', l).order('cree_le')) || []).map((x: any) => ({ club: x.club_index, texte: x.texte }));
     },
     async viderCourrier(l: string) { ok(await sb.from('courrier').delete().eq('ligue_id', l)); },
+
+    async compteParHash(h: string) { const r = ok(await sb.from('comptes').select('user_id').eq('code_hash', h).maybeSingle()); return r ? r.user_id : null; },
+    async poserCompte(uid: string, h: string) { ok(await sb.from('comptes').upsert({ user_id: uid, code_hash: h })); },
+    async transfererCompte(ancien: string, nouveau: string) { return !!ok(await sb.rpc('transferer_compte', { ancien, nouveau })); },
   };
 }

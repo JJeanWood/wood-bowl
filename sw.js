@@ -2,7 +2,7 @@
    - Le code (html, js, css) : d'abord le réseau, pour toujours avoir la dernière version ; le cache en secours hors ligne.
    - Les images et musiques : d'abord le cache (elles ne changent pas), téléchargées une fois. */
 const VERSION='wb-3';
-const CODE=['./','./index.html','./style.css','./moteur.js','./legendes.js','./carriere.js','./gazette.js','./gazette2.js','./son.js','./jeu.js','./manifest.webmanifest'];
+const CODE=['./','./index.html','./style.css','./moteur.js','./legendes.js','./carriere.js','./gazette.js','./gazette2.js','./son.js','./jeu.js','./ligue-ui.js','./multijoueur/config.js','./manifest.webmanifest'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(VERSION).then(c=>c.addAll(CODE.map(u=>new Request(u,{cache:'reload'})))).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{

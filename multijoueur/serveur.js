@@ -129,6 +129,15 @@ async function modifier(db,id,fn){
 async function demande(db,uid,q,now){
   q=q||{};const ko=m=>({erreur:m});
   if(!uid)return ko('Vous n\'êtes pas connecté.');
+  /* --- le compte : un code secret de 4 mots permet de retrouver ses clubs sur un autre appareil --- */
+  if(q.action==='code'){const h=propre(q.hash,64);if(!/^[0-9a-f]{64}$/.test(h))return ko('Code invalide.');
+    const deja=await db.compteParHash(h);if(deja&&deja!==uid)return ko('Ce code est déjà utilisé : générez-en un autre.');
+    await db.poserCompte(uid,h);return{ok:true}}
+  if(q.action==='retrouver'){const h=propre(q.hash,64);if(!/^[0-9a-f]{64}$/.test(h))return ko('Code invalide.');
+    const ancien=await db.compteParHash(h);if(!ancien)return ko('Code inconnu. Vérifiez les quatre mots.');
+    if(ancien===uid)return{ok:true,deja:true};
+    if(!(await db.transfererCompte(ancien,uid)))return ko('Impossible de réunir les deux comptes : cet appareil a déjà un club dans une des mêmes ligues.');
+    return{ok:true}}
   /* --- sans ligue : créer ou rejoindre --- */
   if(q.action==='creer'){
     const nom=propre(q.nom,40)||'Ligue des copains',pseudo=propre(q.pseudo,20),c=q.club||{};
