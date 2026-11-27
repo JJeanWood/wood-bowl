@@ -1151,6 +1151,17 @@ document.addEventListener('touchend',e=>{if(!glisse||!S||vue!=='gazette')return;
 document.addEventListener('keydown',e=>{if(!S||vue!=='gazette'||tuto>=0||guide||prono||fiche!==null||e.target.tagName==='SELECT')return;if(e.key==='ArrowRight')tournerPage(pageG+1,true);else if(e.key==='ArrowLeft')tournerPage(pageG-1,true)});
 document.addEventListener('keydown',e=>{if(tuto>=0&&e.key==='Escape'){tutoAller(-1);return}if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.aide){montrerBulle(e.target);bulle._de=e.target;return}if(e.key!=='Escape')return;if(confirmation)confirmation=null;else if(message)message=null;else if(guide)guide=false;else if(offre)offre=null;else if(fiche!==null)fiche=null;else if(clubVu!==null)clubVu=null;else return;rendre()});
 
+/* Le geste « retour » du téléphone ne fait plus sortir de l'appli : il ferme ce qui est ouvert (fiche, message, écran de menu), sinon il ne fait rien. */
+function retourArriere(){
+  if(confirmation)confirmation=null;else if(message)message=null;else if(guide)guide=false;else if(prono)prono=false;else if(offre)offre=null;else if(fiche!==null)fiche=null;
+  else if(clubVu!==null)clubVu=null;else if(tiroir)tiroir=false;else if(legVue)legVue=null;else if(pretVu)pretVu=false;
+  else if(!S&&ecran==='multi'&&window.LG&&LG.ecran!=='accueil')LG.ecran='accueil';
+  else if(!S&&ecran!=='titre')ecran='titre';
+  else return false;
+  rendre();return true;
+}
+try{history.pushState({wb:1},'');addEventListener('popstate',()=>{retourArriere();history.pushState({wb:1},'')})}catch(e){}
+
 function demarrer(d){preparerSauvegardes();brancherNuage();if(d&&d.S&&d.S.v===3&&d.partieId){S=courant(d.S);partieId=d.partieId;if(d.vue)vue=d.vue}rendre()}
 const chaud=window.claude&&window.claude.hot;
 if(chaud&&chaud.snapshot)chaud.snapshot(()=>({S,vue,partieId}));

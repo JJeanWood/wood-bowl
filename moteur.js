@@ -1060,14 +1060,21 @@ function choisirTitulairesSiVide(T){if(T.joueurs.filter(p=>p.titulaire&&dispo(p)
 
 /* ---------- Ancienne sauvegarde (Brutball) ---------- */
 function convertirPortraits(o){
-  const tous=new Set();Object.values(PORTRAITS).forEach(d=>Object.values(d).forEach(l=>l.forEach(k=>tous.add(k))));
+  /* tous les portraits connus, joueurs ET joueuses (oublier les joueuses leur faisait perdre leur visage à chaque ouverture de la partie) */
+  const tous=new Set();[PORTRAITS,PORTRAITS_F].forEach(P=>Object.values(P).forEach(d=>Object.values(d).forEach(l=>l.forEach(k=>tous.add(k)))));
   const conv=(race,t)=>{const k=typeof t==='string'?t:race+((race==='elfe'&&t===6)?2:(t||0));return tous.has(k)||k.startsWith('leg/')?k:race+'0'};
   o.teams.forEach(T=>T.joueurs.forEach(p=>{p.tete=conv(p.race,p.tete)}));
   (o.marche||[]).forEach(p=>{p.tete=conv(p.race,p.tete)});
   (o.fame||[]).forEach(f=>{f.tete=conv(f.race,f.tete)});(o.morts||[]).forEach(f=>{if(f.race)f.tete=conv(f.race,f.tete)});
   /* doublons : on redistribue les visages */
-  o.teams.forEach(T=>T.joueurs.forEach(p=>{if(p.tete===p.race+'0'&&p._retire!==1){}}));
-  const vus={};o.teams.forEach(T=>T.joueurs.forEach(p=>{if(vus[p.tete]){p.tete=null;p.tete=choisirPortrait(o,p.race,p.veteran?'veteran':'std')}vus[p.tete]=1}));
+  /* règle d'or : le visage d'un joueur d'un club humain ne change JAMAIS. Seuls les clubs de l'ordinateur cèdent le leur en cas de doublon. */
+  const vus={};o.teams.forEach(T=>{if(estH(T))T.joueurs.forEach(p=>{vus[p.tete]=1})});
+  o.teams.forEach(T=>{if(estH(T))return;T.joueurs.forEach(p=>{if(vus[p.tete]&&!p.leg){p.tete=null;p.tete=choisirPortrait(o,p.race,p.veteran?'veteran':'std',p.sexe)}vus[p.tete]=1})});
+  /* réparation des parties abîmées par l'ancien défaut : une joueuse retrouve un portrait de joueuse (et un joueur, de joueur) */
+  const estF=k=>/_f[sjv]\d+$/.test(k);
+  const reparer=p=>{if(!p||p.leg||typeof p.tete!=='string'||!tous.has(p.tete))return;const f=p.sexe==='f';
+    if(f!==estF(p.tete)&&(!f||aPortraitF(p.race,'std'))){p.tete=null;p.tete=choisirPortrait(o,p.race,p.veteran?'veteran':p.jeune&&!p.saisons?'jeune':'std',p.sexe)}};
+  o.teams.forEach(T=>T.joueurs.forEach(reparer));(o.marche||[]).forEach(reparer);
 }
 function vedettesV2(o){const f=p=>{if(p&&p.trait==='vedette'&&!p.vedV2&&!p.leg){p.vedV2=1;p.f=clamp(p.f+8,10,99);p.v=clamp(p.v+2,10,99);p.t=clamp(p.t+2,10,99);STATS.forEach(k=>{p.cap[k]=clamp(Math.max(p.cap[k]+8,p[k]),p[k],99)})}};(o.teams||[]).forEach(T=>T.joueurs.forEach(f));(o.marche||[]).forEach(f);if(o.inter&&o.inter.arrivees)o.inter.arrivees.forEach(a=>f(a&&a.p?a.p:a))}
 function migrerCarriere(o){if(!o.teams)return;if(!o.div){o.div=4;o.divMax=4}(o.teams||[]).forEach(T=>T.joueurs.forEach(assurerCarriere));(o.marche||[]).forEach(assurerCarriere);if(o.inter&&o.inter.arrivees)o.inter.arrivees.forEach(a=>assurerCarriere(a.p));if(o.coupe===undefined){if(o.phase==='saison'&&(o.jour||0)<=2)nouvelleCoupe(o);else o.coupe=null}if(o.coupe&&o.coupe.invites)o.coupe.invites.forEach(T=>T.joueurs.forEach(assurerCarriere))}

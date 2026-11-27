@@ -32,7 +32,8 @@ function peuplerDivision(S,d){
     remiseAZero(T);
   });
   if(R()<D.legIA)legendeIA(S);
-  S.teams.forEach(T=>{varierTetes(T);choisirTitulaires(T)});
+  /* les joueurs d'un club humain gardent leur visage : seuls les clubs de l'ordinateur sont revus */
+  S.teams.forEach(T=>{if(!estH(T))varierTetes(T);choisirTitulaires(T)});
 }
 
 /* fin de saison : montée, maintien ou descente */

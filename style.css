@@ -26,7 +26,10 @@
   --gazette:'Pirata One','Alegreya',Georgia,serif;
 }
 *{box-sizing:border-box}
-html,body{margin:0}
+html,body{margin:0;overscroll-behavior:none;overflow-x:hidden}
+/* on ne fait défiler que de haut en bas : pas de glissement de côté, pas de rebond qui fait sortir de l'appli */
+body{touch-action:pan-y;-webkit-tap-highlight-color:transparent}
+.sous[role=tablist],.sommaire,.eventail{touch-action:pan-x pan-y}
 body{background-color:var(--fond);color:var(--creme);font-family:var(--texte);font-size:16px;line-height:1.4;
   background-image:repeating-linear-gradient(90deg,rgba(0,0,0,.22) 0 2px,transparent 2px 118px),
     repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 7px),
