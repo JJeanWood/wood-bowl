@@ -854,6 +854,7 @@ const EVTS={
 };
 function tirerEvenement(S,M){
   const T=moiDe(S,M),g=G(S,T);
+  if(g.evt&&g.evt.perso)return; /* un happening du créateur attend sa réponse : il ne s'efface pas */
   g.evt=null;const d=detresse(S,T);
   if(R()>(.22+d*.14))return;
   const ids=Object.keys(EVTS);const poids=ids.map(k=>Math.max(0,EVTS[k].poids(d,S,T)));
@@ -869,6 +870,7 @@ function resoudreEvenement(S,oui,M){
   if(e.k==='collecte'||e.k==='mecene'){T.or+=e.po;if(e.k==='mecene')g.plumes=true;return'+'+e.po+' po dans la caisse.'}
   if(e.k==='guerisseur'){const p=T.joueurs.find(x=>x.id===e.cible);if(p){p.blesse=0;p.forme=Math.max(40,p.forme-10)}return p?p.nom+' est guéri (et sent la pommade).':null}
   if(e.k==='transfuge'){const A=S.teams[e.de];const p=A&&A.joueurs.find(x=>x.id===e.p);if(!p)return"Il a changé d'avis.";if(T.joueurs.length>=MAX_EFFECTIF)return'Effectif complet.';A.joueurs=A.joueurs.filter(x=>x!==p);p.titulaire=false;T.joueurs.push(p);varierTetes(T,p);return p.nom+' rejoint le club.'}
+  if(e.k==='invite'){if(T.joueurs.length>=MAX_EFFECTIF){g.evt=e;return"Effectif complet : libérez une place, il attend à la porte."}if(T.or<(e.cout||0)){g.evt=e;return'Il vous faut '+e.cout+' po.'}T.or-=(e.cout||0);e.p.titulaire=false;T.joueurs.push(e.p);return e.p.nom+' rejoint le club.'}
   if(e.k==='banquier'){return emprunter(S,T)?'+'+PRET.montant+' po. Remboursement : '+PRET.parMatch+' po par match.':null}
   return null;
 }

@@ -96,16 +96,24 @@ Tests : `node multijoueur/test_ligue.js` (ligues de 1 à 10 amis, 2 saisons, enc
 - **Primes** : barème de fin de saison étiré à 8 ou 10 clubs ; sponsors « première moitié » et « deux derniers » adaptés.
 - **Secrets** : la vue d'un joueur ne contient ni profil caché (seule la pierre de brume), ni la caisse, la composition, l'entraînement et la gestion des autres amis. Réglage `caissesVisibles` pour montrer les caisses.
 
-### À prévoir à l'étape serveur
-- Demandes de Juju (27 nov. 2026) : écran « Membres » ; commissaires adjoints (boutons Lancer / Pause / Reprendre), nommés par lui seul ; exclure un membre (son club passe à l'ordinateur ou est confié à un autre ami) ; écran « Créateur » pour envoyer un happening à un club choisi ; légendes sur mesure à l'image de ses premiers testeurs, qui frappent à la porte de leur club.
-- L'état complet (avec profils cachés, intentions de l'ordinateur, vraies notes du marché) ne doit pas être lisible par l'appli : il faudra une table privée (par ex. `etats_prives`, sans aucun droit pour les joueurs) et servir `vuePour(S, club)` par une fonction. Petit ajout SQL à faire coller à Juju à ce moment-là, avec la planification `pg_cron`.
-- Le serveur doit charger `ligue.js` en plus des cinq fichiers du moteur.
+## Serveur de ligue : écrit (27 nov. 2026), à mettre en service
+- `multijoueur/serveur.js` : toute la logique (calendrier réel à l'heure de Paris, `avancer`, `tick`, `demande`). Elle ne touche la base qu'à travers un objet `db`, ce qui permet de la tester sans Supabase : `node multijoueur/test_serveur.js` (fausse base en mémoire, une ligue complète heure par heure).
+- `multijoueur/construire.js` assemble moteur + ligue + serveur dans `supabase/functions/_shared/jeu.js` (fichier fabriqué, non enregistré dans le dépôt).
+- `supabase/functions/tick` (horloge) et `supabase/functions/ligue` (demandes des joueurs et du commissaire) ; `_shared/base.ts` traduit `db` en requêtes Supabase. Ces trois fichiers n'ont pas pu être exécutés ici (pas d'accès à Supabase) : première vérification réelle à la mise en service.
+- `.github/workflows/serveur.yml` : à chaque publication sur `main`, tests puis déploiement des fonctions. Secret nécessaire dans le dépôt : `SUPABASE_ACCESS_TOKEN`.
+- `multijoueur/supabase2.sql` : tables privées `etats_prives` et `reprises`, table `vues_club`, adjoints, enchères verrouillées sur le tour en cours, horloge `pg_cron`. Toujours le recoller après `supabase.sql`.
+
+Où sont les données : `etats_prives.etat` = état complet (serveur seul) ; `ligues.etat` = `vuePour(S,-1)` (tous les membres) ; `vues_club.vue` = `{club, marche}` du propriétaire. `ligues.etat.encheres.tour` donne le nom du tour d'enchères ouvert (`draft-1`, `draft-2`, `mercato-N`, `inter-S`) ; les ordres d'une journée s'écrivent avec `journee = ligues.version + 1`.
+
+Demandes à la fonction `ligue` (`{action, ligue, …}`) : `creer`, `rejoindre` (code d'invitation ou code de reprise), `gestion` (`geste` = action de `appliquerAction`), `echange` (`id`, `oui`), `quitter` ; commissaire et adjoints : `demarrer`, `lancer`, `pause`, `reprendre`, `reglages` (+ `echeance` pour repousser) ; commissaire seul : `adjoint`, `exclure`, `confier` (donne un code de reprise), `happening` (`don`, `joueur` sur mesure, ou un rebondissement du jeu).
+
+Reste à faire côté serveur : notifications push ; légendes sur mesure des premiers testeurs (le happening `joueur` existe, il manque leurs fiches et leurs portraits).
 
 ## Ordre de travail
 1. Supabase : création du projet par Juju (pas à pas), collage de `supabase.sql`, réglages Auth (« Confirm email » désactivé dans Authentication › Sign In / Providers › bloc User Signups).
 2. Moteur multi : **fait** (voir plus haut).
    Supabase : projet créé par Juju le 27 nov. 2026, base collée, « Confirm email » désactivé ; adresse et clé publique dans `multijoueur/config.js`.
-3. Fonctions serveur `tick` et `commissaire`.
+3. Fonctions serveur `tick` et `ligue` : **écrites**, mise en service en cours (jeton Supabase dans GitHub, collage de `supabase2.sql`).
 4. Écrans de l'appli : créer ou rejoindre une ligue, draft, mercato, gazette de ligue, échanges, réglages du commissaire.
 5. Notifications.
 6. Ligue d'essai Juju + un compte de test, puis invitation des amis.

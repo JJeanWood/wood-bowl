@@ -283,7 +283,7 @@ function appliquerEchange(S,e){
 function vuePour(S,id){
   const V=JSON.parse(JSON.stringify(S));
   const cacher=p=>{if(!p)return;if(p.h){if(CACHE_IDS.some(k=>p.h[k]>=85))p.brume=true;delete p.h}if(p.mortInfo)delete p.mortInfo.rob};
-  delete V.opts;delete V.memo;delete V._recents;
+  delete V.opts;delete V.memo;delete V._recents;delete V.srv; /* srv contient la graine du hasard : elle ne sort pas du serveur */
   V.teams.forEach(T=>{
     T.joueurs.forEach(cacher);
     if(T.humain&&T.id!==id){
@@ -304,5 +304,52 @@ function vuePour(S,id){
   });
   V.moi=id;
   return V;
+}
+
+/* ce que le serveur range pour un club : sa propre équipe (avec sa gestion) et le marché vu par son chineur */
+function vueClub(S,id){const V=vuePour(S,id);return{club:V.teams[id]||null,marche:V.marche}}
+
+/* ---------- Vie de la ligue : départs, reprises, happenings ---------- */
+/* un ami quitte la ligue (ou en est exclu) : son club continue, dirigé par l'ordinateur */
+function clubVersIA(S,T){
+  if(!T||!estH(T))return'Ce club est déjà dirigé par l\'ordinateur.';
+  const n={};T.joueurs.forEach(p=>{n[p.race]=(n[p.race]||0)+1});
+  const race=Object.keys(n).sort((a,b)=>n[b]-n[a])[0]||T.peuple||'humain';
+  let arch=CLUBS_IA.findIndex(c=>c.races[0]===race);if(arch<0)arch=3;
+  T.humain=false;T.arch=arch;T.ia=IA_NEUTRE;T.ancienPseudo=T.pseudo||'';T.pseudo='';delete T.gest;T.liste=[];
+  choisirTitulaires(T);
+  if(S.phase==='saison'&&!S.fini){const pm=S.calendrier[S.jour].some(m=>m.includes(T.id));if(pm)S.opts[T.id]=optsIA(S,T.id);T.iaEntr=iaEntrainement(T)}
+  return null;
+}
+/* un nouvel ami reprend un club dirigé par l'ordinateur (seulement un ancien club d'ami, ou n'importe lequel si le commissaire le veut) */
+function clubVersHumain(S,T,pseudo){
+  if(!T||estH(T))return'Ce club a déjà un propriétaire.';
+  T.humain=true;T.pseudo=pseudo||'';if(!T.peuple){const c=archDe(T);T.peuple=c?c.races[0]:'humain'}
+  delete T.arch;delete T.ia;delete T.iaEntr;T.gest=nouvelleGestion();if(T.or<30)T.or=30;
+  if(S.opts)delete S.opts[T.id];
+  if(S.phase==='saison'&&!S.fini)preparerRapport(S,T);
+  return null;
+}
+/* Happening lancé par le créateur du jeu pour un club précis. Il remplace le rebondissement en attente de ce club.
+   h = {k:'veteran'|'mercenaire'|'collecte'|'guerisseur'|'transfuge'|'mecene'|'banquier'}  (un rebondissement du jeu, forcé)
+   ou {k:'don', po, titre, texte}  (un cadeau, avec votre texte)
+   ou {k:'joueur', titre, texte, joueur:{nom, sexe, race, poste, f, v, t, sp, trait, age, tete, prime}}  (un joueur sur mesure frappe à la porte) */
+function happening(S,T,h){
+  if(!T||!estH(T)||!h)return'Club inconnu.';
+  if(S.phase!=='saison'||S.fini)return'Les happenings se déclenchent pendant la saison.';
+  courant(S);const g=G(S,T);
+  if(h.k==='don'){const po=clamp(Math.floor(Number(h.po)||0),1,500);
+    g.evt={k:'collecte',titre:String(h.titre||'Un cadeau tombé du ciel').slice(0,80),po,texte:String(h.texte||('Un bienfaiteur anonyme vous offre '+po+' po.')).slice(0,600),oui:'Accepter les '+po+' po',non:'Refuser',perso:true};return null}
+  if(h.k==='joueur'){const j=h.joueur||{};if(!RACES[j.race]||!POSTES[j.poste]||!j.nom)return'Il faut au moins un nom, un peuple et un poste.';
+    const p=nouveauJoueur(S,j.race,6,{poste:j.poste,sexe:j.sexe==='f'?'f':'m',trait:TRAITS[j.trait]?j.trait:'aucun'});
+    p.nom=String(j.nom).slice(0,40);(S._sexe||(S._sexe={}))[p.nom]=p.sexe;
+    STATS.forEach(k=>{if(Number.isFinite(j[k])){p[k]=clamp(Math.round(j[k]),15,97);p.cap[k]=clamp(Math.max(p.cap[k],p[k]+3),p[k],99)}});
+    if(Number.isFinite(j.sp)){p.sp=clamp(Math.round(j.sp),0,95);p.cap.sp=clamp(Math.max(p.cap.sp,p.sp+5),p.sp,99)}
+    if(Number.isFinite(j.age))p.age=clamp(Math.round(j.age),16,40);if(typeof j.tete==='string')p.tete=j.tete;
+    p.perso=true;p.sal=salaire(p);const prime=clamp(Math.floor(Number(j.prime)||0),0,500);
+    g.evt={k:'invite',titre:String(h.titre||'On frappe à la porte du club').slice(0,80),p,cout:prime,texte:String(h.texte||(p.nom+' veut jouer pour vous.')).slice(0,600),oui:prime?'Signer pour '+prime+' po':'L\'accueillir',non:'Refuser',perso:true};return null}
+  if(!EVTS[h.k])return'Happening inconnu.';
+  const e=EVTS[h.k].cree(S,T);if(!e)return'Ce happening n\'a pas de sens pour ce club en ce moment.';
+  g.evt=Object.assign({k:h.k,titre:EVTS[h.k].titre},e);return null;
 }
 if(typeof module!=='undefined')module.exports={};

@@ -38,7 +38,8 @@ Plan détaillé, base de données et suivi du chantier : `multijoueur/MULTIJOUEU
 Le moteur est déterministe avec `R=graine(seed)` ; `estH(T)` distingue un club humain (`T.humain`) d'un club de l'ordinateur.
 En ligue (`S.multi`), la gestion de chaque club humain est dans `T.gest` (en solo : dans `S`) ; toujours passer par `G(S,T)`. Attention : `T.g` est le nombre de victoires.
 Test de non-régression du solo : `node multijoueur/test_non_regression.js <nouveau> <ancien>` (mêmes graines, même résultat).
-Test de la ligue : `node multijoueur/test_ligue.js` (simulation avec de faux amis).
+Test de la ligue : `node multijoueur/test_ligue.js` (simulation avec de faux amis). Test du serveur : `node multijoueur/test_serveur.js` (fausse base en mémoire).
+Serveur : logique dans `multijoueur/serveur.js`, fonctions Supabase dans `supabase/functions/` (déployées par `.github/workflows/serveur.yml` à chaque push sur `main`).
 
 ## Vérifier avant de livrer
 - Tests moteur en Node (concaténer moteur.js, legendes.js, carriere.js, gazette.js, gazette2.js dans `new Function`) : simuler plusieurs saisons sans erreur.

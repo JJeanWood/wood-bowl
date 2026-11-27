@@ -1,0 +1,10 @@
+# Projet Supabase de la ligue Wood Bowl
+project_id = "gfsritybqwrkgujilser"
+
+# Les deux fonctions vérifient elles-mêmes qui les appelle :
+# « ligue » contrôle la connexion du joueur ; « tick » ne fait avancer que les ligues dont l'heure est venue.
+[functions.tick]
+verify_jwt = false
+
+[functions.ligue]
+verify_jwt = false
