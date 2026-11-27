@@ -1,7 +1,7 @@
 /* Wood Bowl : service worker.
    - Le code (html, js, css) : d'abord le réseau, pour toujours avoir la dernière version ; le cache en secours hors ligne.
    - Les images et musiques : d'abord le cache (elles ne changent pas), téléchargées une fois. */
-const VERSION='wb-1';
+const VERSION='wb-2';
 const CODE=['./','./index.html','./style.css','./moteur.js','./legendes.js','./carriere.js','./gazette.js','./gazette2.js','./son.js','./jeu.js','./manifest.webmanifest'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(VERSION).then(c=>c.addAll(CODE)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});

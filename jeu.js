@@ -64,8 +64,8 @@ const moiT=()=>S.teams[0];
 const fr=x=>String(x).replace('.',',');
 
 /* ---------- Dessins ---------- */
-const LOGOS=[['nuit','Nuit de match'],['affiche','Vieille affiche'],['cuir','Cuir et clous'],['1','Le nain casqué']];
-function logoActuel(){let v=null;try{v=localStorage.getItem('woodbowl-logo')}catch(e){}return LOGOS.some(l=>l[0]===v)?v:'nuit'}
+const LOGOS=[['patine','Nuit patinée'],['nuit','Nuit de match'],['affiche','Vieille affiche'],['cuir','Cuir et clous'],['1','Le nain casqué']];
+function logoActuel(){let v=null;try{if(!localStorage.getItem('woodbowl-logo-v2')){localStorage.setItem('woodbowl-logo','patine');localStorage.setItem('woodbowl-logo-v2','1')}v=localStorage.getItem('woodbowl-logo')}catch(e){}return LOGOS.some(l=>l[0]===v)?v:'patine'}
 const srcLogo=k=>k==='1'?'img/logo1.png':'img/logo_'+k+'.png';
 function logo(cls){return cls==='grand'?'<img class="logo-img grand" alt="Wood Bowl" src="'+srcLogo(logoActuel())+'">':'<img class="logo-img" alt="Wood Bowl" src="img/titre.png">'}
 const ICO={
