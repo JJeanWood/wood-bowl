@@ -919,3 +919,10 @@ li.mien{color:var(--creme)}
 .lg-carte .achat{gap:5px}
 .lg-mise{width:76px;padding:8px 6px;border-radius:4px;border:1px solid var(--trait);background:var(--planche);color:inherit;font:inherit;font-weight:700;text-align:center}
 .lg-class td{padding:4px 6px}.lg-class tr.moi td{color:var(--or,#f2c230)}.lg-class small{opacity:.7}
+/* draft sur grand écran : l'appli s'élargit et les joueurs se rangent sur 2 ou 3 colonnes */
+@media (min-width:860px){
+  #app:has(.lg-vivier){max-width:1240px}
+  .lg-vivier{display:grid;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));gap:10px;align-items:stretch}
+  .lg-vivier>.panneau{grid-column:1/-1}
+  #app:has(.lg-vivier) .lg-filtres{max-width:640px}
+}

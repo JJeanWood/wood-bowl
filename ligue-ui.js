@@ -201,7 +201,7 @@ function vueDraft(){
   const F=[['tous','Tous'],['Cogneur','Cogneurs'],['Coureur','Coureurs'],['Passeur','Passeurs'],['mises','Mes mises']];
   h+='<div class="seg lg-filtres">'+F.map(([k,l])=>'<button data-l="filtre" data-v="'+k+'" aria-pressed="'+(LG.filtre===k)+'">'+l+'</button>').join('')+'</div>';
   const liste=D.vivier.filter(p=>LG.filtre==='tous'||(LG.filtre==='mises'?LG.mises[p.id]!==undefined:p.poste===LG.filtre)).sort((a,b)=>valeur(b)-valeur(a)||a.id-b.id);
-  h+='<div class="effectif">'+(liste.length?liste.map(p=>carteDraft(p,moi)).join(''):'<div class="panneau">'+(LG.filtre==='mises'?'Vous n\'avez encore misé sur personne.':'Plus personne à ce poste.')+'</div>')+'</div>';
+  h+='<div class="effectif lg-vivier">'+(liste.length?liste.map(p=>carteDraft(p,moi)).join(''):'<div class="panneau">'+(LG.filtre==='mises'?'Vous n\'avez encore misé sur personne.':'Plus personne à ce poste.')+'</div>')+'</div>';
   if(D.ventes&&D.ventes.length)h+='<div class="panneau" style="margin-top:12px"><b>Résultats du premier tour</b><p class="note" style="margin-top:4px">'+D.ventes.map(v=>esc(v.nom)+' → '+esc((L.etat.teams[v.club]||{}).court||'?')+' ('+v.prix+' po)').join('<br>')+'</p></div>';
   return h;
 }

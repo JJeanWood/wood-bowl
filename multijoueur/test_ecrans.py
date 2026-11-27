@@ -28,7 +28,7 @@ def verifier(c, msg):
     if not c: echecs.append(msg); print('  ✗', msg)
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch(); pg = await b.new_page(viewport={'width': 420, 'height': 900})
+        b = await p.chromium.launch(); pg = await b.new_page(viewport={'width': int(os.environ.get('LARGEUR', 420)), 'height': 900})
         errs = []
         pg.on('pageerror', lambda e: errs.append(str(e)[:300]))
         await pg.add_init_script(INIT)
