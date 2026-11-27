@@ -540,7 +540,7 @@ function vueTitre(){
     +'<div class="menu">'
     +(r?'<button class="gros" data-act="ouvrir" data-v="'+r.id+'">Continuer<small>'+esc(r.nom)+' · '+etatPartie(r)+'</small></button>':'<button class="gros" data-act="ecran" data-v="nouvelle">Fonder mon premier club</button>')
     +'<button class="menu-btn" data-act="ecran" data-v="solo"><b>Partie solo</b><small>'+(L.length?pl(L.length,'équipe enregistrée','équipes enregistrées')+' · nouvelle équipe':'Votre club contre 5 clubs de l\'ordinateur')+'</small></button>'
-    +'<button class="menu-btn" data-act="ecran" data-v="multi"><b>Multijoueur <span class="bientot">en test</span></b><small>Une ligue entre amis : créer, rejoindre, draft</small></button>'
+    +'<button class="menu-btn" data-act="ecran" data-v="multi"><b>Multijoueur <span class="bientot">dans l\'appli</span></b><small>Le Labo ne se joue qu\'en solo</small></button>'
     +'<button class="menu-btn" data-act="ecran" data-v="reglages"><b>Réglages</b><small>Son, apparence, tutoriel</small></button>'
     +'</div><p class="pied">Jeu privé entre amis · aucune publicité · sauvegardes gardées sur cet appareil</p></section>';
 }
@@ -566,13 +566,8 @@ function vueAccueil(){
 }
 function vueMulti(){
   if(typeof vueLigueAmis==='function')return vueLigueAmis(); /* les écrans de ligue sont dans ligue-ui.js */
-  return'<section class="ecran-menu">'+retourTitre('Multijoueur')+'<div class="panneau multi"><span class="bientot grand">En préparation</span>'
-    +'<p>Le but final de Wood Bowl : <b>une ligue entre amis</b>, où chacun dirige son club depuis son téléphone.</p><ul>'
-    +'<li><b>Rejoindre</b><span>On entre dans la ligue au début d\'une saison, avec un code d\'invitation.</span></li>'
-    +'<li><b>Jouer à son rythme</b><span>Chacun règle ses ordres avant la date limite de la journée ; les matchs se jouent tous ensemble.</span></li>'
-    +'<li><b>Personne ne bloque</b><span>Un ami absent ? Son équipe est dirigée automatiquement jusqu\'à son retour.</span></li>'
-    +'<li><b>Une gazette commune</b><span>L\'Écho du Gourdin raconte les matchs de tout le monde… et les coups bas entre amis.</span></li></ul>'
-    +'<p class="note">En attendant, la partie solo sert d\'entraînement : vos équipes enregistrées resteront jouables.</p></div></section>';
+  return'<section class="ecran-menu">'+retourTitre('Multijoueur')+'<div class="panneau multi"><span class="bientot grand">Le Labo</span>'
+    +'<p>Ici, c\'est <b>le Labo</b> : le brouillon où l\'on essaie les idées avant de les mettre dans l\'appli. Il ne se joue qu\'en solo.</p><p class="note">La ligue entre amis se joue dans l\'appli, pas ici.</p></div></section>';
 }
 function vueReglages(){
   return'<section class="ecran-menu">'+retourTitre('Réglages')

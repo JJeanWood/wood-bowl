@@ -947,3 +947,5 @@ li.mien{color:var(--creme)}
 .lg-bandeau-solo{display:flex;gap:10px;align-items:center;margin:8px 0 2px;font-size:13.5px;color:var(--creme-sourde)}
 .lg-bandeau-solo span{min-width:0}
 .lg-prochain{text-align:center;margin-top:12px;border-color:var(--or)}
+/* le Labo : une étiquette pour ne jamais le confondre avec l'appli */
+body::after{content:"LABO";position:fixed;top:6px;right:6px;z-index:999;background:#c8402c;color:#fff;font:800 11px/1 system-ui,sans-serif;letter-spacing:.14em;padding:5px 7px 4px;border-radius:3px;transform:rotate(4deg);pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.4)}
