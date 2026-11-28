@@ -20,17 +20,17 @@ function wpick(arr,w){let t=0;const ws=arr.map((x,i)=>{const k=Math.max(.0001,w(
 
 /* ---------- Peuples, postes, traits ---------- */
 const RACES={
-  humain:{nom:'Humain',pl:'Humains',base:{f:50,v:50,t:50},atout:"Bosseurs : progressent plus vite à l'entraînement.",faible:"Aucun don particulier : ni très forts, ni très rapides.",pouvoir:"Polyvalents : chaque humain titulaire renforce un peu l'attaque et la défense. Médiateurs : un humain apaise les rivalités entre peuples.",allies:['nain','elfe'],rivaux:[]},
-  orque:{nom:'Orque',pl:'Orques',base:{f:70,v:44,t:36},atout:'Cogneurs nés : leurs charges blessent plus souvent, et chaque orque titulaire intimide l\'adversaire.',faible:"Indisciplinés : l'arbitre les remarque plus souvent.",pouvoir:'',allies:['gobelin'],rivaux:['nain']},
-  nain:{nom:'Nain',pl:'Nains',base:{f:67,v:39,t:50},atout:'Coriaces : rarement blessés, récupèrent vite, et chaque nain titulaire renforce la défense.',faible:'Lents : peu dangereux balle en main.',pouvoir:'',allies:['humain'],rivaux:['orque','gobelin']},
-  elfe:{nom:'Elfe',pl:'Elfes',base:{f:32,v:61,t:63},atout:"Virtuoses : les meilleurs passeurs et coureurs-nés du royaume.",faible:'Délicats : ils se blessent facilement.',pouvoir:'',allies:['humain'],rivaux:['elfenoir']},
-  elfenoir:{nom:'Elfe noir',pl:'Elfes noirs',base:{f:42,v:58,t:52},atout:'Cruels : leurs coups visent le meilleur joueur adverse.',faible:"Sournois mais repérés : l'arbitre les surveille.",pouvoir:'',allies:['gobelin'],rivaux:['elfe']},
-  gobelin:{nom:'Gobelin',pl:'Gobelins',base:{f:31,v:66,t:49},atout:'Fourbes : tentent des buts en douce.',faible:'Petits : un coup bien placé les envoie à l\'infirmerie.',pouvoir:'',allies:['orque','elfenoir'],rivaux:['nain']}
+  humain:{nom:'Humain',pl:'Humains',base:{f:50,v:50,t:50,mn:50},atout:"Bosseurs : progressent plus vite à l'entraînement.",faible:"Aucun don particulier : ni très forts, ni très rapides.",pouvoir:"Polyvalents : chaque humain titulaire renforce un peu l'attaque et la défense. Médiateurs : un humain apaise les rivalités entre peuples.",allies:['nain','elfe'],rivaux:[]},
+  orque:{nom:'Orque',pl:'Orques',base:{f:70,v:44,t:34,mn:38},atout:'Cogneurs nés : leurs charges blessent plus souvent, et chaque orque titulaire intimide l\'adversaire.',faible:"Indisciplinés : l'arbitre les remarque plus souvent.",pouvoir:'',allies:['gobelin'],rivaux:['nain']},
+  nain:{nom:'Nain',pl:'Nains',base:{f:67,v:39,t:52,mn:46},atout:'Coriaces : rarement blessés, récupèrent vite, et chaque nain titulaire renforce la défense.',faible:'Lents, et les mains carrées : peu dangereux ballon en main.',pouvoir:'',allies:['humain'],rivaux:['orque','gobelin']},
+  elfe:{nom:'Elfe',pl:'Elfes',base:{f:32,v:61,t:64,mn:61},atout:"Virtuoses : les meilleurs passeurs et coureurs-nés du royaume.",faible:'Délicats : ils se blessent facilement.',pouvoir:'',allies:['humain'],rivaux:['elfenoir']},
+  elfenoir:{nom:'Elfe noir',pl:'Elfes noirs',base:{f:42,v:58,t:50,mn:55},atout:'Cruels : leurs coups visent le meilleur joueur adverse.',faible:"Sournois mais repérés : l'arbitre les surveille.",pouvoir:'',allies:['gobelin'],rivaux:['elfe']},
+  gobelin:{nom:'Gobelin',pl:'Gobelins',base:{f:31,v:66,t:44,mn:56},atout:'Fourbes : tentent des buts en douce.',faible:'Petits : un coup bien placé les envoie à l\'infirmerie.',pouvoir:'',allies:['orque','elfenoir'],rivaux:['nain']}
 };
 const RACE_IDS=Object.keys(RACES);
 /* ---------- Spécialités de peuple : une 4e jauge qu'on entraîne à part ---------- */
 const SPECIALITES={
-  humain:{nom:'Touche-à-tout',desc:"S'entraîner en spécialité fait progresser un peu la force, la vitesse et la balle en même temps. Plus la spécialité est haute, plus ces petits gains sont fréquents."},
+  humain:{nom:'Touche-à-tout',desc:"S'entraîner en spécialité fait progresser un peu la force, la vitesse, la passe et les mains en même temps. Plus la spécialité est haute, plus ces petits gains sont fréquents."},
   orque:{nom:'Grosse brute',desc:"Charge plus souvent et frappe plus fort. Revers : l'arbitre le repère plus facilement."},
   nain:{nom:'Tête de pioche',desc:"Peut encaisser une blessure comme si de rien n'était : il se relève, s'époussette et continue."},
   elfe:{nom:'Pas de danse',desc:"Peut esquiver complètement une charge adverse, d'une pirouette. Compense sa fragilité."},
@@ -39,13 +39,17 @@ const SPECIALITES={
 };
 const NIV_SPE=sp=>sp>=75?'Maître':sp>=50?'Expert':sp>=25?'Confirmé':'Novice';
 const POSTES={
-  Cogneur:{pl:'Cogneurs',court:'COG',mod:{f:13,v:-5,t:-8},role:"Défend, plaque et fait mal. Rarement dangereux balle en main."},
-  Coureur:{pl:'Coureurs',court:'COU',mod:{f:-5,v:13,t:-4},role:"Porte la balle et marque la plupart des buts."},
-  Passeur:{pl:'Passeurs',court:'PAS',mod:{f:-8,v:-3,t:13},role:"Fait jouer les autres : sans lui, l'attaque tourne en rond."}
+  Cogneur:{pl:'Cogneurs',court:'COG',mod:{f:13,v:-5,t:-8,mn:-8},role:"Défend, plaque et fait mal. Vit de sa force. Rarement dangereux ballon en main."},
+  'Trois-quarts':{pl:'Trois-quarts',court:'3/4',mod:{f:5,v:5,t:-4,mn:0},role:"Le perce-muraille : enfonce la ligne adverse et rattrape les coureurs d'en face. Vit de sa force et de sa vitesse à parts égales. Jamais le meilleur à une place, mais dépanne partout."},
+  Coureur:{pl:'Coureurs',court:'COU',mod:{f:-5,v:13,t:-8,mn:6},role:"Reçoit le ballon et marque la plupart des buts. Vit de sa vitesse et de ses mains."},
+  Passeur:{pl:'Passeurs',court:'PSR',mod:{f:-8,v:-3,t:13,mn:-3},role:"Lance le jeu : sans lui, l'attaque tourne en rond. Vit de sa passe."}
 };
-const POSTE_IDS=['Cogneur','Coureur','Passeur'];
-const AFF={humain:[1,1,1],orque:[5,2,1],nain:[4,1,3],elfe:[1,4,5],elfenoir:[2,5,3],gobelin:[1,6,2]};
-const MIN_POSTE={Cogneur:2,Coureur:2,Passeur:1};
+const POSTE_IDS=['Cogneur','Trois-quarts','Coureur','Passeur'];
+const AFF={humain:[1,1.3,1,1],orque:[5,3,2,1],nain:[4,2.5,1,3],elfe:[1,1.5,4,5],elfenoir:[2,3,5,3],gobelin:[1,1.2,6,2]};
+/* LABO : 7 joueurs sur le terrain, à 7 places fixes ; l'effectif monte à 11 */
+const NB_TIT=7,EFF_IA=9;
+const MIN_POSTE={Cogneur:2,'Trois-quarts':2,Coureur:2,Passeur:1};
+const PLACES=['Passeur','Coureur','Coureur','Trois-quarts','Trois-quarts','Cogneur','Cogneur'];
 const TRAITS={
   aucun:{nom:'',desc:'Rien à signaler.'},
   brute:{nom:'Brute',desc:"Cherche la bagarre : frappe plus souvent, et l'arbitre le remarque."},
@@ -91,11 +95,12 @@ function nomJoueur(race,pris,sexe){const L=sexe==='f'?NOMS_F:NOMS;for(let k=0;k<
 function nomJoueurM(race,pris){for(let k=0;k<40;k++){const a=pick(NOMS[race][0]),b=pick(NOMS[race][1]),n=a+' '+b;if(!pris)return n;if(pris.has(n)||(k<25&&(pris.has('a:'+a)||pris.has('b:'+b))))continue;pris.add(n);pris.add('a:'+a);pris.add('b:'+b);return n}return pick(NOMS[race][0])+' le Second'}
 
 /* ---------- Valeur, salaire, potentiel ---------- */
-const STATS=['f','v','t'];
-const marge=p=>Math.max(0,Math.round(STATS.reduce((s,k)=>s+(p.cap[k]-p[k]),0)/3));
-const valeurBase=p=>(p.f+p.v+p.t)/5+(p.sp||0)/15+(p.trait==='vedette'?4:0)+3*(p.etoiles||0)-2*(p.cicatrices||0);
+const STATS=['f','v','t','mn'];
+const somme3=p=>(p.f+p.v+p.t+p.mn)*.75; /* quatre notes ramenées à l'échelle de trois : les prix et les salaires ne bougent pas */
+const marge=p=>Math.max(0,Math.round(STATS.reduce((s,k)=>s+(p.cap[k]-p[k]),0)/STATS.length));
+const valeurBase=p=>somme3(p)/5+(p.sp||0)/15+(p.trait==='vedette'?4:0)+3*(p.etoiles||0)-2*(p.cicatrices||0);
 const valeur=p=>Math.max(5,Math.round(valeurBase(p)+marge(p)/3));
-const salaire=p=>Math.max(1,Math.round(valeurBase(p)/9*(p.trait==='vedette'?1.4:1)));
+const salaire=p=>Math.max(1,Math.round(valeurBase(p)/9*.76*(p.trait==='vedette'?1.4:1)));
 const etoilesPot=m=>m<=3?1:m<=7?2:m<=12?3:m<=17?4:5;
 
 /* tous les noms déjà portés dans la partie : deux joueurs ne doivent jamais s'appeler pareil.
@@ -117,10 +122,10 @@ function nouveauJoueur(S,race,bonus,opts){
   const typeP=opts.portrait||(opts.jeune&&R()<.5?'jeune':'std');
   const nF=(PORTRAITS_F[race]&&PORTRAITS_F[race].std.length)||0;
   const sexe=opts.sexe||(R()<.42*Math.min(1,nF/4)&&aPortraitF(race,typeP)?'f':'m');
-  const p={id:S.nextId++,sexe,nom:nomJoueur(race,S._noms||nomsUtilises(S),sexe),race,poste,f:mk('f'),v:mk('v'),t:mk('t'),forme:ri(72,90),trait,tete:null,
+  const p={id:S.nextId++,sexe,nom:nomJoueur(race,S._noms||nomsUtilises(S),sexe),race,poste,f:mk('f'),v:mk('v'),t:mk('t'),mn:mk('mn'),forme:ri(72,90),trait,tete:null,
     blesse:0,suspendu:0,mort:false,cicatrices:0,etoiles:0,titulaire:false,entr:'repos',gain:null,saisons:0,
     buts:0,victimes:0,matchs:0,pd:0,cj:0,cr:0,sb:0,sv:0,sm:0,sj:0,spd:0,sn:0,snb:0};
-  if(trait==='vedette'){p.f=clamp(p.f+8,15,95);p.v=clamp(p.v+8,15,95);p.t=clamp(p.t+8,15,95);p.vedV2=1}
+  if(trait==='vedette'){STATS.forEach(k=>{p[k]=clamp(p[k]+8,15,95)});p.vedV2=1}
   const mg=ri(3,20)+(trait==='vedette'?8:0)+(opts.jeune?6:0);
   p.cap={};STATS.forEach(k=>{p.cap[k]=clamp(p[k]+mg+ri(-3,3),p[k],99)});
   p.sp=clamp(ri(5,25)+Math.round((bonus||0)*1.5),0,90);p.cap.sp=clamp(p.sp+ri(30,65),p.sp,99);
@@ -181,7 +186,7 @@ const CLUBS_IA=[
   {nom:'Les Enclumes de Barbefer',court:'Barbefer',couleur:'#2f6b4a',races:['nain','nain','nain','nain','nain','humain','nain'],ia:{brutal:.25,prudent:.25,pot:.1,focus:'f'},rep:'On ne passe pas. Ils ne courent pas non plus.'},
   {nom:'Les Lames de Nuitamère',court:'Nuitamère',couleur:'#6f2f6c',races:['elfenoir','elfenoir','elfenoir','elfenoir','elfenoir','gobelin','elfenoir'],ia:{brutal:.45,prudent:0,pot:.2,focus:'v'},rep:"Ils choisissent leur victime avant le coup d'envoi."}
 ];
-const POSTES_DEPART=['Cogneur','Cogneur','Coureur','Coureur','Passeur',null,null];
+const POSTES_DEPART=['Cogneur','Cogneur','Trois-quarts','Trois-quarts','Coureur','Coureur','Passeur',null,null];
 /* le modèle d'un club de l'ordinateur (en solo : le club n° i suit le modèle i-1 ; en ligue : T.arch) */
 const archDe=T=>CLUBS_IA[T.arch!==undefined?T.arch:T.id-1];
 const IA_NEUTRE={brutal:.2,prudent:.2,pot:.1,focus:'v'};
@@ -201,13 +206,14 @@ const contreDe=t=>TACTIQUE_IDS.find(k=>TACTIQUES[k].bat===t)||'equilibre';
 
 /* ---------- États d'équipe ---------- */
 const ETATS=[
-  {id:'pur',nom:'Sang pur',cond:'5 titulaires du même peuple',effet:'+8 % en attaque et en défense',att:1.08,def:1.08,test:x=>x.max>=5},
-  {id:'clan',nom:'Esprit de clan',cond:'4 titulaires du même peuple',effet:'+4 % en attaque et en défense',att:1.04,def:1.04,test:x=>x.max===4},
-  {id:'bric',nom:'Bric et broc',cond:'4 peuples différents ou plus sur le terrain',effet:"+7 % en attaque : personne ne sait ce qu'ils vont faire",att:1.07,test:x=>x.nb>=4},
+  {id:'pur',nom:'Sang pur',cond:'7 titulaires du même peuple',effet:'+8 % en attaque et en défense',att:1.08,def:1.08,test:x=>x.max>=7},
+  {id:'clan',nom:'Esprit de clan',cond:'5 ou 6 titulaires du même peuple',effet:'+4 % en attaque et en défense',att:1.04,def:1.04,test:x=>x.max===5||x.max===6},
+  {id:'bric',nom:'Bric et broc',cond:'5 peuples différents ou plus sur le terrain',effet:"+7 % en attaque : personne ne sait ce qu'ils vont faire",att:1.07,test:x=>x.nb>=5},
   {id:'mur',nom:'Mur de brutes',cond:'3 cogneurs titulaires ou plus',effet:'+8 % en défense, charges plus fréquentes',def:1.08,cast:1.12,test:x=>x.p.Cogneur>=3},
   {id:'feu',nom:'Jambes de feu',cond:'3 coureurs titulaires ou plus',effet:'+7 % en attaque',att:1.07,test:x=>x.p.Coureur>=3},
+  {id:'beliers',nom:'Ligne de béliers',cond:'3 trois-quarts titulaires ou plus',effet:'+3 % en attaque et en défense',att:1.03,def:1.03,test:x=>x.p['Trois-quarts']>=3},
   {id:'leche',nom:'Jeu léché',cond:'2 passeurs titulaires ou plus',effet:'+4 % en attaque et en défense',att:1.04,def:1.04,test:x=>x.p.Passeur>=2},
-  {id:'soude',nom:'Vestiaire soudé',cond:"les 5 mêmes titulaires qu'au match précédent",effet:'+3 % en attaque et en défense',att:1.03,def:1.03,test:x=>x.memes},
+  {id:'soude',nom:'Vestiaire soudé',cond:"les 7 mêmes titulaires qu'au match précédent",effet:'+3 % en attaque et en défense',att:1.03,def:1.03,test:x=>x.memes},
   {id:'horde',nom:'La Horde',cond:'un orque et un gobelin titulaires',effet:'+5 % en attaque : les gobelins filent dans le sillage des charges orques',att:1.05,test:x=>x.r.orque&&x.r.gobelin},
   {id:'alliance',nom:'Vieille alliance',cond:'un humain et un nain titulaires',effet:'+5 % en défense : ils ont déjà tenu des remparts ensemble',def:1.05,test:x=>x.r.humain&&x.r.nain},
   {id:'ouest',nom:"Pacte de l'Ouest",cond:'un humain et un elfe titulaires',effet:'+4 % en attaque : les elfes lancent, les humains suivent',att:1.04,test:x=>x.r.humain&&x.r.elfe},
@@ -218,32 +224,33 @@ const ETATS=[
   {id:'mediateur',nom:'Médiateur',cond:'un humain titulaire alors qu\'une rivalité est active',effet:"+3 % partout : l'humain calme les esprits, la rivalité pèse moitié moins",att:1.03,def:1.03,test:x=>x.r.humain&&((x.r.elfe&&x.r.elfenoir)||(x.r.nain&&x.r.orque)||(x.r.nain&&x.r.gobelin))},
   {id:'sanspas',nom:'Sans passeur',cond:'aucun passeur titulaire',effet:"−8 % en attaque : personne pour distribuer",att:.92,mal:true,test:x=>!x.p.Passeur},
   {id:'sanscog',nom:'Sans cogneur',cond:'aucun cogneur titulaire',effet:'−10 % en défense : la porte est ouverte',def:.9,mal:true,test:x=>!x.p.Cogneur},
+  {id:'sanstq',nom:'Sans trois-quarts',cond:'aucun trois-quarts titulaire',effet:"−5 % en attaque et en défense : personne pour faire le lien",att:.95,def:.95,mal:true,test:x=>!x.p['Trois-quarts']},
   {id:'sanscou',nom:'Sans coureur',cond:'aucun coureur titulaire',effet:'−8 % en attaque : personne pour finir les actions',att:.92,mal:true,test:x=>!x.p.Coureur}
 ];
-function compterPostes(P){const p={Cogneur:0,Coureur:0,Passeur:0};P.forEach(j=>{if(!j.temp)p[j.poste]++});return p}
+function compterPostes(P){const p={Cogneur:0,'Trois-quarts':0,Coureur:0,Passeur:0};P.forEach(j=>{if(!j.temp)p[j.poste]++});return p}
 function etatsDe(T,P){
   const r={};P.forEach(j=>{if(j.temp)return;r[j.race]=(r[j.race]||0)+1});
   const vals=Object.values(r);const ids=P.map(j=>j.id).sort((a,b)=>a-b).join(',');
-  const x={r,p:compterPostes(P),max:Math.max(0,...vals),nb:vals.length,memes:P.length===5&&!P.some(j=>j.temp)&&T.dernier===ids};
+  const x={r,p:compterPostes(P),max:Math.max(0,...vals),nb:vals.length,memes:P.length===NB_TIT&&!P.some(j=>j.temp)&&T.dernier===ids};
   return ETATS.filter(e=>e.test(x));
 }
 const dispo=p=>!p.mort&&p.blesse===0&&!p.suspendu;
-const puissance=p=>(p.f+p.v+p.t)*(.8+.2*p.forme/100);
+const puissance=p=>somme3(p)*(.8+.2*p.forme/100);
 function onzeDe(T){
   const d=T.joueurs.filter(dispo);
-  let tit=d.filter(p=>p.titulaire).sort((a,b)=>puissance(b)-puissance(a)).slice(0,5);
+  let tit=d.filter(p=>p.titulaire).sort((a,b)=>puissance(b)-puissance(a)).slice(0,NB_TIT);
   let reste=d.filter(p=>!tit.includes(p));
   if(!estH(T))reste.sort((a,b)=>puissance(b)-puissance(a));
   /* on complète d'abord avec ceux qu'on n'a pas volontairement mis au banc */
   else reste.sort((a,b)=>(a.auBanc?1:0)-(b.auBanc?1:0));
-  while(tit.length<5&&reste.length)tit.push(reste.shift());
+  while(tit.length<NB_TIT&&reste.length)tit.push(reste.shift());
   return{tit,reste};
 }
 function choisirTitulaires(T){T.joueurs.forEach(p=>{delete p.auBanc}); // l'ordinateur : les meilleurs, en gardant au moins un joueur de chaque poste si possible
   const d=T.joueurs.filter(dispo).sort((a,b)=>puissance(b)-puissance(a));
   T.joueurs.forEach(p=>p.titulaire=false);
-  const tit=[];POSTE_IDS.forEach(po=>{const x=d.find(p=>p.poste===po&&!tit.includes(p));if(x)tit.push(x)});
-  d.forEach(p=>{if(tit.length<5&&!tit.includes(p))tit.push(p)});
+  const tit=[];PLACES.forEach(po=>{const x=d.find(p=>p.poste===po&&!tit.includes(p));if(x)tit.push(x)});
+  d.forEach(p=>{if(tit.length<NB_TIT&&!tit.includes(p))tit.push(p)});
   tit.forEach(p=>p.titulaire=true);
 }
 function postesManquants(T){const n=compterPostes(T.joueurs.filter(p=>!p.mort));return POSTE_IDS.filter(po=>n[po]<MIN_POSTE[po])}
@@ -301,20 +308,22 @@ function tousLesJoueurs(S){return S.teams.flatMap(T=>T.joueurs.map(p=>({p,T})))}
 function legendeIA(S){
   const T=pick(clubsIA(S));const p=tirerLegende(S,l=>archDe(T).races.includes(l.race));if(!p)return null;
   const meme=T.joueurs.filter(x=>x.poste===p.poste&&!x.leg).sort((a,b)=>puissance(a)-puissance(b))[0];
-  if(meme&&T.joueurs.length>=6)T.joueurs.splice(T.joueurs.indexOf(meme),1);
+  if(meme&&T.joueurs.length>=EFF_IA-1)T.joueurs.splice(T.joueurs.indexOf(meme),1);
   T.joueurs.push(p);return{T,p};
 }
+/* un club de l'ordinateur démarre avec 9 joueurs : ses 7 peuples d'origine, placés pour que ses peuples favoris tiennent leurs postes de prédilection */
+function racesDepart(c){const r=c.races;return[r[0],r[1],r[5%r.length],r[6%r.length],r[2],r[3],r[4],r[0],r[2]]}
 function nouvellePartie(nomClub,race){
   const S={v:3,nextId:1,saison:1,jour:0,fini:false,phase:'saison',teams:[],gazettes:[],marche:[],morts:[],fame:[],vus:[],histOr:[],
     choix:{consigne:'normal',pot:false,marque:null,tactique:'equilibre'},sponsor:null,offresSponsor:offresSponsor(),candidats:candidatsStaff(),inter:null,opts:null,rapport:null};
   S._noms=new Set();
   const moi={id:0,nom:nomClub,court:nomClub,couleur:'#2f5fa8',or:50,pop:35,joueurs:[],dernier:'',staff:{},liste:[]};
   const autres=RACE_IDS.filter(r=>r!==race);
-  [race,race,race,race,race,pick(autres),pick(autres)].forEach((r,i)=>moi.joueurs.push(nouveauJoueur(S,r,0,{poste:POSTES_DEPART[i]})));
+  [race,race,race,race,race,race,race,pick(autres),pick(autres)].forEach((r,i)=>moi.joueurs.push(nouveauJoueur(S,r,0,{poste:POSTES_DEPART[i]})));
   remiseAZero(moi);S.teams.push(moi);
   CLUBS_IA.forEach((c,i)=>{
     const T={id:i+1,nom:c.nom,court:c.court,couleur:c.couleur,ia:c.ia,rep:c.rep,or:0,pop:40,joueurs:[],dernier:'',staff:staffIA(),liste:[]};
-    c.races.forEach((r,k)=>T.joueurs.push(nouveauJoueur(S,r,ri(-4,-1),{poste:POSTES_DEPART[k]})));
+    racesDepart(c).forEach((r,k)=>T.joueurs.push(nouveauJoueur(S,r,ri(-4,-1),{poste:POSTES_DEPART[k]})));
     remiseAZero(T);S.teams.push(T);
   });
   courant(S);if(R()<.5)legendeIA(S);S.teams.forEach(T=>{varierTetes(T);choisirTitulaires(T)});
@@ -334,7 +343,7 @@ function jeuneDuPays(S,race){
 function nouveauMarche(S){
   const T=S.teams[0];const n=kk(T,'chin','marche');const nv=niv(T,'chin');const manque=postesManquants(T);const out=[];
   for(let i=0;i<n;i++){
-    const poste=i<3?POSTE_IDS[i]:(nv>=1&&manque.length&&R()<.6?pick(manque):pick(POSTE_IDS));
+    const poste=i<4?POSTE_IDS[i]:(nv>=1&&manque.length&&R()<.6?pick(manque):pick(POSTE_IDS));
     out.push(nouveauJoueur(S,pick(RACE_IDS),ri(-3,3)+Math.max(0,nv)+divDe(S).marche,{poste,jeune:R()<.25}));
   }
   /* rarement, une légende se présente au marché */
@@ -342,7 +351,7 @@ function nouveauMarche(S){
   const b=kk(T,'chin','bruit');
   out.forEach(p=>{p.vu={};STATS.forEach(k=>{p.vu[k]=clamp(p[k]+ri(-b,b),10,99)});p.vu.m=Math.max(0,marge(p)+ri(-Math.ceil(b/2),Math.ceil(b/2)))});
   /* le centre de formation propose toujours un jeune gratuit quand l'effectif est court */
-  if(T.joueurs.length<7){const y=jeuneDuPays(S,T.joueurs.length?pick(T.joueurs).race:null);y.vu={f:y.f,v:y.v,t:y.t,m:marge(y)};out.unshift(y)}
+  if(T.joueurs.length<EFF_IA){const y=jeuneDuPays(S,T.joueurs.length?pick(T.joueurs).race:null);y.vu={f:y.f,v:y.v,t:y.t,mn:y.mn,m:marge(y)};out.unshift(y)}
   if(nv>=1){
     const cible=manque.length?out.filter(p=>manque.includes(p.poste)):out;
     const best=cible.filter(p=>!p.gratuit).sort((a,b)=>(b.f+b.v+b.t+marge(b)*2)/valeur(b)-(a.f+a.v+a.t+marge(a)*2)/valeur(a))[0];
@@ -353,7 +362,7 @@ function nouveauMarche(S){
 const prixMarche=(S,p)=>p.gratuit?0:Math.max(5,Math.round(valeur(p)*(p.leg?1.6:1)*(1-kk(S.teams[0],'chin','remise')/100)));
 
 /* ---------- Entraînement ---------- */
-const ENTR={repos:{nom:'Repos',court:'Repos'},f:{nom:'Force',court:'FOR'},v:{nom:'Vitesse',court:'VIT'},t:{nom:'Balle',court:'BAL'},sp:{nom:'Spécialité',court:'SPÉ'}};
+const ENTR={repos:{nom:'Repos',court:'Repos'},f:{nom:'Force',court:'FOR'},v:{nom:'Vitesse',court:'VIT'},t:{nom:'Passe',court:'PAS'},mn:{nom:'Mains',court:'MAI'},sp:{nom:'Spécialité',court:'SPÉ'}};
 function entrainer(T){
   const g=kk(T,'prep','gain')*[1,1.06,1.12,1.2][nivStade(T,'terrain')],fat=kk(T,'prep','fatigue'),rec=kk(T,'prep','recup'),gue=Math.min(.8,kk(T,'prep','guerison')+[0,.1,.2,.3][nivStade(T,'infirmerie')]);
   T.joueurs.forEach(p=>{
@@ -375,7 +384,7 @@ function entrainer(T){
     if(e==='sp'&&p.race==='humain'){let n=0;STATS.forEach(k=>{if(p[k]<p.cap[k]&&R()<.35+p.sp/200){p[k]++;n++}});if(n)p.gain.tout=n}
   });
 }
-const STAT_POSTE={Cogneur:'f',Coureur:'v',Passeur:'t'};
+const STAT_POSTE={Cogneur:'f','Trois-quarts':'f',Coureur:'v',Passeur:'t'};
 function iaEntrPour(p){const r=R();const k=r<.5?STAT_POSTE[p.poste]:r<.75?'sp':pick(STATS);return p[k]>=p.cap[k]?pick(STATS.filter(x=>p[x]<p.cap[x]).concat(['sp'])):k}
 function iaEntrainement(T){const r=R();return r<.5?T.ia.focus:r<.75?'sp':pick(STATS)}
 
@@ -392,7 +401,7 @@ function optsIA(S,id){
   const w={equilibre:2,sol:cp.Coureur>=2?2.5:.3,aerien:cp.Passeur>=1?2:.3,pressing:1.2,mur:cp.Cogneur>=3?2:1,contre:1.2};
   return{consigne:r<ia.brutal?'brutal':r<ia.brutal+ia.prudent?'prudent':'normal',pot:R()<ia.pot,marqueAuto:R()<.35,tactique:wpick(TACTIQUE_IDS,k=>w[k])};
 }
-function menaceDe(T){const{tit}=onzeDe(T);return tit.filter(p=>p.poste!=='Cogneur').sort((a,b)=>(b.v+2*b.t)-(a.v+2*a.t))[0]||tit[0]||null}
+function menaceDe(T){const{tit}=onzeDe(T);return tit.filter(p=>p.poste!=='Cogneur').sort((a,b)=>(b.v+2*b.mn)-(a.v+2*a.mn))[0]||tit[0]||null}
 function conseilIdeal(S,adv,o,T){
   const moi=moiDe(S,T);const a=onzeDe(moi).tit,b=onzeDe(adv).tit;
   const pm=a.reduce((s,p)=>s+puissance(p),0),pa=b.reduce((s,p)=>s+puissance(p),0)||1;
@@ -402,9 +411,9 @@ function conseilIdeal(S,adv,o,T){
   if(pm>pa*1.07)return'normal';
   return o.consigne==='prudent'?'brutal':'normal';
 }
-/* ---------- Prêt d'urgence : quand il vous reste moins de 5 joueurs valides ---------- */
+/* ---------- Prêt d'urgence : quand il vous reste moins de 7 joueurs valides ---------- */
 const PRIX_PRET=6;
-function besoinPret(S,M){const moi=moiDe(S,M);return Math.max(0,5-moi.joueurs.filter(dispo).length)}
+function besoinPret(S,M){const moi=moiDe(S,M);return Math.max(0,NB_TIT-moi.joueurs.filter(dispo).length)}
 function offresPret(S,M){
   if(S.phase!=='saison'||S.fini)return[];
   const g=G(S,moiDe(S,M));
@@ -420,7 +429,7 @@ function offresPret(S,M){
 function emprunterJoueur(S,id,M){
   const moi=moiDe(S,M);const L=offresPret(S,moi);const p=L.find(x=>x.id===id);
   if(!p)return'Ce joueur n\'est plus disponible.';
-  if(!besoinPret(S,moi))return'Vous avez déjà 5 joueurs valides : pas de prêt d\'urgence.';
+  if(!besoinPret(S,moi))return'Vous avez déjà 7 joueurs valides : pas de prêt d\'urgence.';
   if(moi.or<p.prix)return'Il vous faut '+p.prix+' po.';
   moi.or-=p.prix;p.titulaire=true;moi.joueurs.push(p);varierTetes(moi,p);G(S,moi).prets.liste=L.filter(x=>x!==p);
   return null;
@@ -456,17 +465,36 @@ function preparerRapport(S,T){
 
 /* ---------- Match ---------- */
 const eff=(p,k)=>p[k]*(.8+.2*p.forme/100)*(p._marque||1)*(p._jour||1);
-function apport(p){
-  const f=eff(p,'f'),v=eff(p,'v'),t=eff(p,'t');
-  if(p.poste==='Cogneur')return{a:(v+t)/2*.55,d:(2*f+v)/3};
-  if(p.poste==='Coureur')return{a:(2*v+t)/3,d:(f+2*v)/3*.7};
+/* la place occupée pendant le match (sinon, le poste du joueur) */
+const pj=p=>p._pl||p.poste;
+function apport(p,place){
+  const f=eff(p,'f'),v=eff(p,'v'),t=eff(p,'t'),mn=eff(p,'mn');place=place||pj(p);
+  if(place==='Cogneur')return{a:(v+mn)/2*.55,d:(2*f+v)/3};
+  if(place==='Coureur')return{a:(2*v+mn)/3,d:(f+2*v)/3*.7};
+  if(place==='Trois-quarts')return{a:(f+v+mn)/3*.8,d:(f+v)/2*.85};
   return{a:(v+3*t)/4,d:(f+v)/2*.7};
 }
+/* qui joue où : on essaie toutes les répartitions des 7 places et on garde celle où l'équipe est la plus forte */
+function placer(tit){
+  /* à valeur presque égale, chacun reste à son poste : ce petit coup de pouce ne sert qu'à choisir les places, il ne change rien aux notes en match */
+  const n=tit.length,val=tit.map(p=>{const o={};POSTE_IDS.forEach(po=>{const x=apport(p,po);o[po]=x.a+x.d+(po===p.poste?4:0)});return o});
+  const libre={};PLACES.forEach(po=>{libre[po]=(libre[po]||0)+1});
+  let best=-1,sol=[];const cur=[];
+  (function aller(i,tot){
+    if(i===n){if(tot>best+1e-9){best=tot;sol=cur.slice()}return}
+    let pose=false;
+    for(const po of POSTE_IDS){if(!libre[po])continue;pose=true;libre[po]--;cur[i]=po;aller(i+1,tot+val[i][po]);libre[po]++}
+    if(!pose){cur[i]=tit[i].poste;aller(i+1,tot)}
+  })(0,0);
+  return sol;
+}
+/* la place prévue de chaque titulaire, pour l'afficher au vestiaire */
+function placesPrevues(T){const{tit}=onzeDe(T);const sol=placer(tit);const out={};tit.forEach((p,i)=>{out[p.id]=sol[i]});return out}
 /* ---------- Ce qui compte pour chaque poste (tiré directement des formules ci-dessus) ---------- */
-const POIDS_POSTE={Cogneur:{f:.667,v:.608,t:.275},Coureur:{v:1.133,t:.333,f:.233},Passeur:{t:.75,v:.6,f:.35}};
-const ORDRE_POSTE={Cogneur:['f','v','t'],Coureur:['v','t','f'],Passeur:['t','v','f']};
-const rangStat=(p,k)=>ORDRE_POSTE[p.poste].indexOf(k)+1; /* 1 principale, 2 secondaire, 3 moins importante */
-function notePoste(p,vu){const w=POIDS_POSTE[p.poste],s=vu||p;let n=0,d=0;STATS.forEach(k=>{n+=w[k]*s[k];d+=w[k]});return Math.round(n/d)}
+const POIDS_POSTE={Cogneur:{f:.667,v:.608,mn:.275,t:0},'Trois-quarts':{f:.692,v:.692,mn:.267,t:0},Coureur:{v:1.133,mn:.333,f:.233,t:0},Passeur:{t:.75,v:.6,f:.35,mn:0}};
+const ORDRE_POSTE={Cogneur:['f','v','mn','t'],'Trois-quarts':['f','v','mn','t'],Coureur:['v','mn','f','t'],Passeur:['t','v','f','mn']};
+const rangStat=(p,k)=>{const w=POIDS_POSTE[p.poste],o=ORDRE_POSTE[p.poste];return!w[k]?4:w[k]>=w[o[0]]-.001?1:o.indexOf(k)+1}; /* 1 principale, 2 secondaire, 3 moins importante, 4 ne sert pas à ce poste */
+function notePoste(p,vu,place){const w=POIDS_POSTE[place||p.poste],s=vu||p;let n=0,d=0;STATS.forEach(k=>{n+=w[k]*s[k];d+=w[k]});return Math.round(n/d)}
 function conseilEntr(p){
   const w=POIDS_POSTE[p.poste];let best=null,sc=0;
   STATS.forEach(k=>{const reste=p.cap[k]-p[k];const v=w[k]*Math.min(reste,8);if(reste>0&&v>sc){sc=v;best=k}});
@@ -474,23 +502,24 @@ function conseilEntr(p){
   if((p.sp||0)<(p.cap.sp||0))return 'sp';
   return best||'repos';
 }
-function stagiaire(){return{id:-ri(1,1e6),nom:'un stagiaire',race:'humain',poste:'Coureur',f:26,v:26,t:26,forme:80,trait:'aucun',blesse:0,mort:false,temp:true,cicatrices:0,buts:0,victimes:0,matchs:0}}
+function stagiaire(){return{id:-ri(1,1e6),nom:'un stagiaire',race:'humain',poste:'Coureur',f:26,v:26,t:26,mn:26,forme:80,trait:'aucun',blesse:0,mort:false,temp:true,cicatrices:0,buts:0,victimes:0,matchs:0}}
 function camp(T,opt,dom){
   const{tit,reste}=onzeDe(T);
   tit.concat(reste).forEach(p=>{p._jour=formeDuJour(p)});
-  let stag=0;while(tit.length<5){tit.push(stagiaire());stag++}
+  let stag=0;while(tit.length<NB_TIT){tit.push(stagiaire());stag++}
+  const sol=placer(tit);tit.forEach((p,i)=>{p._pl=sol[i]});
   const et=etatsDe(T,tit);
   const m=k=>et.reduce((x,e)=>x*(e[k]||1),1);
   const tac=TACTIQUES[opt.tactique]?opt.tactique:'equilibre';
-  return{T,dom,ordres:{},pression:!!opt.pression,tactique:tac,tacMult:1,consigne:opt.consigne,pot:opt.pot,plan:opt.plan||1,discret:et.some(e=>e.discret),marqueur:opt.marque?.97:1,terrain:tit,banc:reste,joue:new Set(tit),avertis:new Set(),score:0,stag,
+  return{T,dom,ordres:{},libres:[],pression:!!opt.pression,tactique:tac,tacMult:1,consigne:opt.consigne,pot:opt.pot,plan:opt.plan||1,discret:et.some(e=>e.discret),marqueur:opt.marque?.97:1,terrain:tit,banc:reste,joue:new Set(tit),avertis:new Set(),score:0,stag,
     etats:et.map(e=>e.nom),etatsMal:et.filter(e=>e.mal).map(e=>e.nom),mAtt:m('att'),mDef:m('def'),mCast:m('cast'),depart:tit.map(p=>p.id).sort((a,b)=>a-b).join(','),
-    st:{occ:0,tirs:0,coups:0,blInfl:0,blSubies:0,expuls:0,jaunes:0,aveugle:0,scandale:false,penalty:0,formeMoy:Math.round(tit.reduce((s,p)=>s+p.forme,0)/5),postes:compterPostes(tit)}};
+    st:{occ:0,tirs:0,coups:0,blInfl:0,blSubies:0,expuls:0,jaunes:0,aveugle:0,scandale:false,penalty:0,formeMoy:Math.round(tit.reduce((s,p)=>s+p.forme,0)/NB_TIT),postes:compterPostes(tit)}};
 }
 function notes(c){
   const P=c.terrain,n=P.length;if(!n)return{att:1,def:1,cast:1};
-  let A=0,D=0,F=0;P.forEach(p=>{const x=apport(p);const mm=mentalMult(p,c);A+=x.a*mm;D+=x.d*mm;F+=eff(p,'f')*(p.poste==='Cogneur'?1.4:.6)});
-  const comp=n<5?Math.pow(5/n,.35):1;
-  let att=A/5*comp*c.mAtt*c.plan*c.marqueur,def=D/5*comp*c.mDef*c.plan;
+  let A=0,D=0,F=0;P.forEach(p=>{const x=apport(p);const mm=mentalMult(p,c);A+=x.a*mm;D+=x.d*mm;F+=eff(p,'f')*({Cogneur:1.4,'Trois-quarts':1}[pj(p)]||.6)});
+  const comp=n<NB_TIT?Math.pow(NB_TIT/n,.35):1;
+  let att=A/NB_TIT*1.08*comp*c.mAtt*c.plan*c.marqueur,def=D/NB_TIT*comp*c.mDef*c.plan;
   const tc=TACTIQUES[c.tactique]||TACTIQUES.equilibre;const cp=compterPostes(P);const actif=!tc.cond||tc.cond(cp);
   if(actif){att*=tc.att||1;def*=tc.def||1}
   att*=c.tacMult;def*=c.tacMult;
@@ -503,7 +532,7 @@ function notes(c){
   if(c.consigne==='prudent'){att*=.94;def*=1.07}
   if(c.consigne==='brutal'){def*=.97}
   att*=1-.03*P.filter(p=>p.trait==='maladroit').length;
-  return{att,def,cast:F/5*comp*c.mCast};
+  return{att,def,cast:F/NB_TIT*.976*comp*c.mCast};
 }
 function simMatch(S,TA,TB,opts){
   const C=[camp(TA,opts[0],true),camp(TB,opts[1],false)];C[0].adv=C[1];C[1].adv=C[0];
@@ -537,8 +566,9 @@ function simMatch(S,TA,TB,opts){
   const minutes=[];for(let i=0;i<8;i++)minutes.push(ri(i*10+1,i*10+10));
   const penaltyPhase=[C[0].pot&&R()<.35?ri(0,7):-1,C[1].pot&&R()<.35?ri(0,7):-1];
   const sc=()=>[C[0].score,C[1].score];
-  const sortir=(c,p)=>{c.terrain=c.terrain.filter(x=>x!==p)};
-  const remplacer=c=>{if(c.banc.length){const r=c.banc.shift();c.terrain.push(r);c.joue.add(r);return r.nom}return null};
+  const sortir=(c,p)=>{c.terrain=c.terrain.filter(x=>x!==p);c.libres.push(pj(p))};
+  /* le remplaçant qui convient le mieux à la place laissée libre */
+  const remplacer=c=>{if(c.banc.length){const pl=c.libres.pop()||null;const r=pl?c.banc.slice().sort((a,b)=>{const x=apport(a,pl),y=apport(b,pl);return(y.a+y.d)-(x.a+x.d)})[0]:c.banc[0];c.banc=c.banc.filter(x=>x!==r);r._pl=pl||r.poste;c.terrain.push(r);c.joue.add(r);return r.nom}return null};
   const rouge=(c,i,p,m,k)=>{c.st.expuls++;sortir(c,p);P(p).cr++;if(!p.temp){p.cr++;p.suspendu=1;p.frais2=true}ev.push({m,k,c:i,j:p.nom})};
   const jaune=(c,i,p,m)=>{
     if(c.avertis.has(p)){P(p).cj++;rouge(c,i,p,m,'rouge2');return}
@@ -559,7 +589,7 @@ function simMatch(S,TA,TB,opts){
   const butDe=(i,p,m,k,extra)=>{
     const c=C[i];c.score++;c.st.occ++;P(p).b++;if(!p.temp){p.buts++;p.sb++}
     const e=Object.assign({m,k,c:i,j:p.nom,poste:p.poste,s:sc()},extra||{});
-    if(k==='but'){const pas=c.terrain.filter(x=>x!==p&&x.poste==='Passeur'&&!x.temp);
+    if(k==='but'){const pas=c.terrain.filter(x=>x!==p&&pj(x)==='Passeur'&&!x.temp);
       if(pas.length&&R()<(c.tactique==='aerien'?.8:.6)){const q=wpick(pas,x=>x.t);e.p=q.nom;P(q).pd++;q.pd++;q.spd++}}
     ev.push(e);
   };
@@ -570,7 +600,7 @@ function simMatch(S,TA,TB,opts){
     if(C[a].terrain.length){
       const chance=C[a].terrain.some(p=>p.trait==='chanceux')?1.04:1;
       const xa=N[a].att*U(.55,1.45)*chance,xd=N[d].def*U(.55,1.45);
-      const tireur=wpick(C[a].terrain,p=>Math.pow((p.v+2*p.t)/3,2)*({Coureur:3,Passeur:1.4,Cogneur:.45}[p.poste])*(p.trait==='chanceux'?1.3:1)*(C[a].tactique==='sol'&&p.poste==='Coureur'?1.4:1)*(p._marque?p._marque*p._marque:1)*(p.pv==='finisseur'?1.8:1));
+      const tireur=wpick(C[a].terrain,p=>Math.pow((p.v+2*p.mn)/3,2)*({Coureur:3,'Trois-quarts':1.5,Passeur:1.1,Cogneur:.45}[pj(p)])*(p.trait==='chanceux'?1.3:1)*(C[a].tactique==='sol'&&pj(p)==='Coureur'?1.4:1)*(p._marque?p._marque*p._marque:1)*(p.pv==='finisseur'?1.8:1));
       C[a].st.tirs++;
       if(xa>xd*(tireur.pv==='finisseur'?1.05:1.18))butDe(a,tireur,m,'but');
       else if(xa>xd*.95){C[a].st.occ++;P(tireur).occ++;ev.push({m,k:'occasion',c:a,j:tireur.nom})}
@@ -589,7 +619,7 @@ function simMatch(S,TA,TB,opts){
       if(!asn){const o=C[h].terrain.find(p=>p.pv==='ombre');if(o&&R()<.11)asn=o}
       if(asn||R()<base*Math.pow(notes(C[h]).cast/45,.8)){
         const ord=p=>C[h].ordres[p.id]&&C[h].ordres[p.id].k;
-        const fr=asn||wpick(C[h].terrain,p=>p.f*(p.poste==='Cogneur'?2.2:.7)*(p.trait==='brute'?2:1)*(p.race==='orque'?1+(p.sp||0)/100:1)*(p.pv==='boucher'?2.5:1)*(ord(p)==='garde'?.5:ord(p)==='cible'?1.25:1));
+        const fr=asn||wpick(C[h].terrain,p=>p.f*({Cogneur:2.2,'Trois-quarts':1.3}[pj(p)]||.7)*(p.trait==='brute'?2:1)*(p.race==='orque'?1+(p.sp||0)/100:1)*(p.pv==='boucher'?2.5:1)*(ord(p)==='garde'?.5:ord(p)==='cible'?1.25:1));
         let vi=(asn||fr.race==='elfenoir')?wpick(C[o].terrain,p=>Math.pow(puissance(p)/100,3)):pick(C[o].terrain);
         let vise=false,garde=false;
         const oc=C[h].ordres[fr.id];
@@ -659,21 +689,22 @@ function simMatch(S,TA,TB,opts){
   // marquage : bilan avant de retirer l'effet
   const bilanMarq=marques.map(x=>{const pf=perf[x.id]||{};return Object.assign(x,{b:pf.b||0,pd:pf.pd||0,occ:pf.occ||0})});
   C.forEach(c=>c.terrain.concat(c.banc,[...c.joue]).forEach(p=>{delete p._marque;delete p._jour}));
+  const placeDe={};C.forEach(c=>c.terrain.concat(c.banc,[...c.joue]).forEach(p=>{if(p._pl)placeDe[p.id]=p._pl;delete p._pl}));
   // notes de la rédaction
   const res=[C[0].score,C[1].score];const notesM={};
   C.forEach((c,i)=>{const o=1-i;const r=res[i]>res[o]?.5:res[i]<res[o]?-.4:0;
     c.joue.forEach(p=>{if(p.temp)return;const x=P(p);
-      let n=5.5+1.5*x.b+.9*x.pd+.25*x.occ+.6*x.sort-.7*x.cj-2*x.cr+r+(p.poste==='Cogneur'&&res[o]<=1?.5:0)+(p.forme-60)/50+U(-.5,.5)-(x.bl?.4:0);
+      let n=5.5+1.5*x.b+.9*x.pd+.25*x.occ+.6*x.sort-.7*x.cj-2*x.cr+r+((placeDe[p.id]||p.poste)==='Cogneur'&&res[o]<=1?.5:0)+(p.forme-60)/50+U(-.5,.5)-(x.bl?.4:0);
       n=Math.round(clamp(n,2,10)*2)/2;notesM[p.id]=n;p.sn+=n;p.snb++})});
   C.forEach(c=>{c.T.dernier=c.depart;const souf=[...c.joue].some(p=>p.pv==='souffle');c.idole=[...c.joue].some(p=>p.pv==='idole');c.T.joueurs.forEach(p=>{if(p.mort)return;if(c.joue.has(p)){p.matchs++;p.sm++;p.forme=clamp(p.forme-(p.race==='nain'?11:16)-(c.tactique==='pressing'?8:0)+(souf&&p.pv!=='souffle'?5:0),5,100)}else p.forme=clamp(p.forme+8,5,100)})});
-  const joueursDe=i=>[...C[i].joue].filter(p=>!p.temp).map(p=>({id:p.id,nom:p.nom,poste:p.poste,race:p.race,tete:p.tete,sexe:p.sexe,leg:p.leg,note:notesM[p.id],perf:perf[p.id]||{}}));
+  const joueursDe=i=>[...C[i].joue].filter(p=>!p.temp).map(p=>({id:p.id,nom:p.nom,poste:p.poste,place:placeDe[p.id]||p.poste,race:p.race,tete:p.tete,sexe:p.sexe,leg:p.leg,note:notesM[p.id],perf:perf[p.id]||{}}));
   return{dom:TA.id,ext:TB.id,score:res,ev,pre,rapport,etats:[C[0].etats,C[1].etats],etatsMal:[C[0].etatsMal,C[1].etatsMal],
     st:[C[0].st,C[1].st],stag:[C[0].stag,C[1].stag],consigne:[C[0].consigne,C[1].consigne],pot:[opts[0].pot,opts[1].pot],plan:[C[0].plan,C[1].plan],tactique:[C[0].tactique,C[1].tactique],duel,
     marques:bilanMarq,idole:[!!C[0].idole,!!C[1].idole],joueurs:[joueursDe(0),joueursDe(1)],rangs:[rangDe(S,TA.id),rangDe(S,TB.id)],public:300+(TA.pop||40)*55+ri(0,600)};
 }
 
 /* ---------- Une journée ---------- */
-const COUT_POT=15,COUT_SOIN=10,DETTE_MAX=-60,MAX_EFFECTIF=8,MIN_EFFECTIF=5,MAX_ECHANGES=3;
+const COUT_POT=15,COUT_SOIN=10,DETTE_MAX=-60,MAX_EFFECTIF=11,MIN_EFFECTIF=7,MAX_ECHANGES=3;
 const PRIX_FIN=[60,45,35,28,24,22];
 /* prime de fin de saison selon le rang ; à 8 ou 10 clubs, on étire le même barème du premier au dernier */
 function prixFin(rang,n){if(!n||n===6)return PRIX_FIN[rang-1]||0;if(rang<1||rang>n)return 0;const x=(rang-1)*5/(n-1),i=Math.floor(x),f=x-i;return Math.round(PRIX_FIN[i]+(i<5?(PRIX_FIN[i+1]-PRIX_FIN[i])*f:0))}
@@ -757,7 +788,7 @@ function jouerJournee(S,ordres){
       if(p.frais2)delete p.frais2;else if(p.suspendu>0)p.suspendu--;
       delete p.soigne;
     });
-    if(!estH(T)){while(T.joueurs.length<6){const manque=postesManquants(T);const n=jeuneDuPays(S,pick(archDe(T).races));if(manque.length){n.poste=manque[0]}T.joueurs.push(n);varierTetes(T,n)}}
+    if(!estH(T)){while(T.joueurs.length<EFF_IA-1){const manque=postesManquants(T);const n=jeuneDuPays(S,pick(archDe(T).races));if(manque.length){n.poste=manque[0]}T.joueurs.push(n);varierTetes(T,n)}}
     else T.joueurs.forEach(p=>{
       if(p.blesse>0){p.titulaire=false;infirmerie.push(p.nom+' : blessé, encore '+pl(p.blesse,'match'))}
       else if(p.suspendu){p.titulaire=false;infirmerie.push(p.nom+' : suspendu au prochain match')}
@@ -846,7 +877,7 @@ function bilanClub(S,moi,x){
 }
 
 /* ---------- Rebondissements : plus fréquents et plus généreux quand le club va mal ---------- */
-function detresse(S,M){const T=moiDe(S,M);let d=0;if(T.or<20)d++;if(T.or<0)d++;if(T.joueurs.length<6)d++;if(T.joueurs.filter(dispo).length<5)d++;return d}
+function detresse(S,M){const T=moiDe(S,M);let d=0;if(T.or<20)d++;if(T.or<0)d++;if(T.joueurs.length<NB_TIT+1)d++;if(T.joueurs.filter(dispo).length<NB_TIT)d++;return d}
 const EVTS={
   veteran:{titre:'Un vétéran sort de sa retraite',poids:(d,S,T)=>T.joueurs.length<MAX_EFFECTIF?1+d:0,cree(S,T){const p=nouveauJoueur(S,pick(RACE_IDS),4,{portrait:'veteran'});STATS.forEach(k=>p.cap[k]=p[k]);p.sal=2;p.veteran=true;
     return{p,texte:p.nom+", "+(p.sexe==='f'?'ancienne gloire des tavernes, s\'ennuie à la retraite. Elle':'ancienne gloire des tavernes, s\'ennuie à la retraite. Il')+" jouera pour vous jusqu'à la fin de la saison pour 2 po par match, sans prime d'arrivée. "+(p.sexe==='f'?'Elle':'Il')+" ne progressera plus et raccrochera à l'intersaison.",oui:'Signer le vétéran',non:'Non merci'}}},
@@ -929,8 +960,8 @@ function passerIntersaison(S){
     T.pop=Math.round(T.pop+(40-T.pop)*.2);
     if(!estH(T)){
       T.joueurs.forEach(p=>{p.sal=salaire(p);p.saisons++});
-      if(T.joueurs.length>6&&R()<.6){const p=T.joueurs.slice().sort((a,b)=>valeur(a)-valeur(b))[0];T.joueurs=T.joueurs.filter(x=>x!==p)}
-      while(T.joueurs.length<7){const n=nouveauJoueur(S,pick(archDe(T).races),ri(divDe(S).ia[0]-1,divDe(S).ia[1]-1),{poste:postesManquants(T)[0]||null,jeune:true});T.joueurs.push(n);varierTetes(T,n)}
+      if(T.joueurs.length>EFF_IA-1&&R()<.6){const p=T.joueurs.slice().sort((a,b)=>valeur(a)-valeur(b))[0];T.joueurs=T.joueurs.filter(x=>x!==p)}
+      while(T.joueurs.length<EFF_IA){const n=nouveauJoueur(S,pick(archDe(T).races),ri(divDe(S).ia[0]-1,divDe(S).ia[1]-1),{poste:postesManquants(T)[0]||null,jeune:true});T.joueurs.push(n);varierTetes(T,n)}
       if(R()<.4){const r=pick(ROLE_IDS);T.staff[r]=nouveauStaff(r,clamp(niv(T,r)+ri(-1,1),0,3))}
       T.liste=T.joueurs.slice().sort((a,b)=>valeur(a)-valeur(b)).slice(0,ri(1,3)).sort(()=>R()-.5).slice(0,2).map(p=>p.id);
       T.gourmandise=U(1.05,1.25);
@@ -965,7 +996,7 @@ function genererArrivees(S,M){
     if(p)L.push({k:'legende',p,prime:ri(35,55),texte:p.nom+(p.sexe==='f'?', joueuse légendaire, ':', joueur légendaire, ')+raison('legende')+'.'});
   }
   /* un joueur adverse en mal de temps de jeu */
-  const candidats=[];clubsIA(S).forEach(T=>T.joueurs.forEach(p=>{if(!p.mort&&p.sm<=4&&T.joueurs.length>5)candidats.push({p,T})}));
+  const candidats=[];clubsIA(S).forEach(T=>T.joueurs.forEach(p=>{if(!p.mort&&p.sm<=4&&T.joueurs.length>NB_TIT)candidats.push({p,T})}));
   if(candidats.length&&R()<.75){
     const o=wpick(candidats,x=>x.p.race===raceMaj?3:1);
     L.push({k:'migrant',p:o.p,de:o.T.id,prime:ri(0,8),texte:o.p.nom+' ('+o.T.court+') '+raison('migrant',{r:RACES[o.p.race].pl.toLowerCase()})+'.'});
@@ -1070,7 +1101,7 @@ function nouvelleSaison(S){
   S.marche=S.multi?marcheCommun(S):nouveauMarche(S);
   preparerJournee(S);
 }
-function choisirTitulairesSiVide(T){if(T.joueurs.filter(p=>p.titulaire&&dispo(p)).length<5)choisirTitulaires(T)}
+function choisirTitulairesSiVide(T){if(T.joueurs.filter(p=>p.titulaire&&dispo(p)).length<NB_TIT)choisirTitulaires(T)}
 
 /* ---------- Ancienne sauvegarde (Brutball) ---------- */
 function convertirPortraits(o){
@@ -1090,10 +1121,27 @@ function convertirPortraits(o){
     if(f!==estF(p.tete)&&(!f||aPortraitF(p.race,'std'))){p.tete=null;p.tete=choisirPortrait(o,p.race,p.veteran?'veteran':p.jeune&&!p.saisons?'jeune':'std',p.sexe)}};
   o.teams.forEach(T=>T.joueurs.forEach(reparer));(o.marche||[]).forEach(reparer);
 }
-function vedettesV2(o){const f=p=>{if(p&&p.trait==='vedette'&&!p.vedV2&&!p.leg){p.vedV2=1;p.f=clamp(p.f+8,10,99);p.v=clamp(p.v+2,10,99);p.t=clamp(p.t+2,10,99);STATS.forEach(k=>{p.cap[k]=clamp(Math.max(p.cap[k]+8,p[k]),p[k],99)})}};(o.teams||[]).forEach(T=>T.joueurs.forEach(f));(o.marche||[]).forEach(f);if(o.inter&&o.inter.arrivees)o.inter.arrivees.forEach(a=>f(a&&a.p?a.p:a))}
+function vedettesV2(o){const f=p=>{if(p&&p.trait==='vedette'&&!p.vedV2&&!p.leg){p.vedV2=1;p.f=clamp(p.f+8,10,99);p.v=clamp(p.v+2,10,99);p.t=clamp(p.t+2,10,99);if(typeof p.mn==='number')p.mn=clamp(p.mn+2,10,99);STATS.forEach(k=>{p.cap[k]=clamp(Math.max(p.cap[k]+8,p[k]),p[k],99)})}};(o.teams||[]).forEach(T=>T.joueurs.forEach(f));(o.marche||[]).forEach(f);if(o.inter&&o.inter.arrivees)o.inter.arrivees.forEach(a=>f(a&&a.p?a.p:a))}
 function migrerCarriere(o){if(!o.teams)return;if(!o.div){o.div=4;o.divMax=4}(o.teams||[]).forEach(T=>T.joueurs.forEach(assurerCarriere));(o.marche||[]).forEach(assurerCarriere);if(o.inter&&o.inter.arrivees)o.inter.arrivees.forEach(a=>assurerCarriere(a.p));if(o.coupe===undefined){if(o.phase==='saison'&&(o.jour||0)<=2)nouvelleCoupe(o);else o.coupe=null}if(o.coupe&&o.coupe.invites)o.coupe.invites.forEach(T=>T.joueurs.forEach(assurerCarriere))}
+/* LABO : les sauvegardes d'avant les 7 joueurs. La note Balle devient la Passe ; les Mains en sont déduites selon le poste et le peuple.
+   Les clubs de l'ordinateur recrutent de quoi aligner 7 joueurs, dont des trois-quarts. */
+const MN_POSTE={Cogneur:0,'Trois-quarts':0,Coureur:6,Passeur:-8},MN_RACE={humain:0,orque:2,nain:-3,elfe:-1,elfenoir:3,gobelin:6};
+function mainsDe(p){if(!p||typeof p.t!=='number'||typeof p.mn==='number')return;const d=(MN_POSTE[p.poste]||0)+(MN_RACE[p.race]||0);p.mn=clamp(p.t+d,10,95);
+  if(p.cap&&typeof p.cap.t==='number')p.cap.mn=clamp(p.cap.t+d,p.mn,99);if(p.vu&&typeof p.vu.t==='number')p.vu.mn=clamp(p.vu.t+d,10,99);if(p.entr==='t'&&p.poste!=='Passeur')p.entr='mn'}
+function migrerLabo(o){
+  if(!o.teams)return;const tous=p=>mainsDe(p);
+  o.teams.forEach(T=>{T.joueurs.forEach(tous);const g=T.gest||{};[g.marche,g.prets&&g.prets.liste].forEach(L=>(L||[]).forEach(tous));if(g.inter&&g.inter.arrivees)g.inter.arrivees.forEach(a=>tous(a.p))});
+  (o.marche||[]).forEach(tous);if(o.prets&&o.prets.liste)o.prets.liste.forEach(tous);if(o.inter&&o.inter.arrivees)o.inter.arrivees.forEach(a=>tous(a.p));
+  if(o.coupe&&o.coupe.invites)o.coupe.invites.forEach(T=>(T.joueurs||[]).forEach(tous));if(o.evt&&o.evt.p)tous(o.evt.p);
+  (o.fame||[]).concat(o.morts||[]).forEach(tous);
+  if(!o.labo7){o.labo7=1;
+    o.teams.forEach(T=>{if(estH(T))return;const a=archDe(T);if(!a)return;
+      while(T.joueurs.filter(p=>!p.mort).length<EFF_IA){const manque=postesManquants(T);const moy=T.joueurs.length?Math.round(T.joueurs.reduce((s,p)=>s+somme3(p)/3,0)/T.joueurs.length-50):0;
+        const n=nouveauJoueur(o,pick(a.races),clamp(moy,-8,25),{poste:manque.includes('Trois-quarts')?'Trois-quarts':manque[0]||null});T.joueurs.push(n);varierTetes(T,n)}
+      choisirTitulaires(T)})}
+}
 function migrer(o){
-  if(!o)return null;courant(o);vedettesV2(o);migrerCarriere(o);if(o.teams&&o.teams[0])o.teams[0].joueurs.forEach(p=>{if(p.entr&&p.entr!=='repos'&&p.cap&&p[p.entr]>=p.cap[p.entr])p.entr=conseilEntr(p)});if(o.v===3){o._sexe=o._sexe||{};o.teams.forEach(T=>T.joueurs.forEach(p=>{if(!p.sexe)p.sexe='m';o._sexe[p.nom]=p.sexe}));convertirPortraits(o);o.teams.forEach(T=>T.joueurs.forEach(p=>{if(p.sp===undefined){p.sp=ri(5,25);p.cap.sp=clamp(p.sp+ri(30,65),p.sp,99)}}));(o.marche||[]).forEach(p=>{if(p.sp===undefined){p.sp=ri(5,25);p.cap.sp=p.sp+40}});if(o.inter&&!o.inter.arrivees)o.inter.arrivees=genererArrivees(o);if(o.choix&&!o.choix.tactique)o.choix.tactique='equilibre';if(o.phase==='inter')o.teams.forEach(T=>T.joueurs.forEach(p=>{p.sj=0;p.suspendu=0}));return o}if(o.v!==2)return null;
+  if(!o)return null;courant(o);migrerLabo(o);vedettesV2(o);migrerCarriere(o);if(o.teams&&o.teams[0])o.teams[0].joueurs.forEach(p=>{if(p.entr&&p.entr!=='repos'&&p.cap&&p[p.entr]>=p.cap[p.entr])p.entr=conseilEntr(p)});if(o.v===3){o._sexe=o._sexe||{};o.teams.forEach(T=>T.joueurs.forEach(p=>{if(!p.sexe)p.sexe='m';o._sexe[p.nom]=p.sexe}));convertirPortraits(o);o.teams.forEach(T=>T.joueurs.forEach(p=>{if(p.sp===undefined){p.sp=ri(5,25);p.cap.sp=clamp(p.sp+ri(30,65),p.sp,99)}}));(o.marche||[]).forEach(p=>{if(p.sp===undefined){p.sp=ri(5,25);p.cap.sp=p.sp+40}});if(o.inter&&!o.inter.arrivees)o.inter.arrivees=genererArrivees(o);if(o.choix&&!o.choix.tactique)o.choix.tactique='equilibre';if(o.phase==='inter')o.teams.forEach(T=>T.joueurs.forEach(p=>{p.sj=0;p.suspendu=0}));return o}if(o.v!==2)return null;
   o.v=3;o.phase='saison';o.vus=[];o.histOr=[];o.inter=null;o.sponsor=null;o.offresSponsor=offresSponsor();o.candidats=candidatsStaff();
   o.choix={consigne:(o.choix&&o.choix.consigne)||'normal',pot:false,marque:null};
   const up=p=>{

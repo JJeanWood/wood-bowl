@@ -27,7 +27,7 @@ function peuplerDivision(S,d){
   S.teams.slice(1).forEach((T,k)=>{
     const c=CLUBS_IA[T.id-1],n=nomClubDiv(T.id-1,d);
     T.nom=n.nom;T.court=n.court;T.pop=40+(4-d)*8;T.liste=[];T.dernier='';
-    T.joueurs=c.races.map((r,i)=>nouveauJoueur(S,r,ri(D.ia[0],D.ia[1]),{poste:POSTES_DEPART[i]}));
+    T.joueurs=racesDepart(c).map((r,i)=>nouveauJoueur(S,r,ri(D.ia[0],D.ia[1]),{poste:POSTES_DEPART[i]}));
     T.staff={};ROLE_IDS.forEach(r=>{const nv=ri(D.staff[0],D.staff[1]);if(nv>=0)T.staff[r]=nouveauStaff(r,Math.min(3,nv))});
     remiseAZero(T);
   });
@@ -124,7 +124,7 @@ function vieillir(S){
         if(S.multi)e.cid=T.id;S.fame.push(e);bilanDe(T).retraites.push({nom:p.nom,age:p.age,buts:p.buts,matchs:p.matchs});T.pop=clamp(T.pop+2,5,100);
       }
     });
-    if(!estH(T)){const D=divDe(S);while(T.joueurs.length<6){const n=nouveauJoueur(S,pick(archDe(T).races),ri(D.ia[0]-2,D.ia[1]-2),{poste:postesManquants(T)[0]||null,jeune:true});T.joueurs.push(n);varierTetes(T,n)}}
+    if(!estH(T)){const D=divDe(S);while(T.joueurs.length<EFF_IA-1){const n=nouveauJoueur(S,pick(archDe(T).races),ri(D.ia[0]-2,D.ia[1]-2),{poste:postesManquants(T)[0]||null,jeune:true});T.joueurs.push(n);varierTetes(T,n)}}
   });
   return S.multi?{par}:par[S.teams[0].id];
 }
@@ -186,7 +186,7 @@ const COUPE_VICTOIRE=30;
 function equipeInvitee(S,id,d,archChoisi){
   const D=DIVS[d],arch=archChoisi!==undefined?archChoisi:ri(0,4),c=CLUBS_IA[arch],n=nomClubDiv(arch,d);
   const T={id,nom:n.nom,court:n.court,couleur:c.couleur,ia:c.ia,rep:c.rep,or:0,pop:40,joueurs:[],dernier:'',staff:{},liste:[],invite:true,div:d};
-  c.races.forEach((r,i)=>T.joueurs.push(nouveauJoueur(S,r,ri(D.ia[0],D.ia[1]),{poste:POSTES_DEPART[i]})));
+  racesDepart(c).forEach((r,i)=>T.joueurs.push(nouveauJoueur(S,r,ri(D.ia[0],D.ia[1]),{poste:POSTES_DEPART[i]})));
   ROLE_IDS.forEach(r=>{const nv=ri(D.staff[0],D.staff[1]);if(nv>=0)T.staff[r]=nouveauStaff(r,Math.min(3,nv))});
   remiseAZero(T);choisirTitulaires(T);return T;
 }
@@ -251,7 +251,7 @@ function jouerCoupe(S,jour,mes){
     let g=res.score[0]>res.score[1]?0:res.score[0]<res.score[1]?1:-1;
     if(g<0){/* séance de tirs au but : la balle et le mental décident */
       const tir=T=>{const{tit}=onzeDe(T);return tit.reduce((s,p)=>s+p.t*(.7+.6*((p.h&&p.h.m)||57)/95),0)};
-      let a=0,b=0;for(let k=0;k<5;k++){if(R()<.55+tir(A)/9000)a++;if(R()<.55+tir(B)/9000)b++}
+      let a=0,b=0;for(let k=0;k<5;k++){if(R()<.55+tir(A)/12600)a++;if(R()<.55+tir(B)/12600)b++}
       while(a===b){if(R()<.7)a++;if(R()<.7)b++}
       tab=[a,b];g=a>b?0:1}
     const W=g===0?A:B;vainqueurs.push(W.id);

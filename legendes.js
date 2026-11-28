@@ -65,8 +65,10 @@ function legendesLibres(S){const pris=new Set();(S.teams||[]).forEach(T=>T.joueu
 function vueLegende(S,id){S.legVues=S.legVues||[];if(!S.legVues.includes(id))S.legVues.push(id)}
 function creerLegende(S,L){
   const b=RACES[L.race].base,m=POSTES[L.poste].mod;
-  const st=(k,i)=>clamp(Math.round(b[k]+m[k]+L.b[i]+(L.poste==='Cogneur'&&k==='f'?5:0)),40,97);
-  const p={id:S.nextId++,sexe:L.sexe,nom:L.nom,race:L.race,poste:L.poste,f:st('f',0),v:st('v',1),t:st('t',2),forme:ri(80,95),trait:'aucun',tete:'leg/'+L.id,
+  const st=(k,i)=>clamp(Math.round(b[k]+m[k]+(typeof i==='number'?L.b[i]:0)+(L.poste==='Cogneur'&&k==='f'?5:0)),40,97);
+  /* les mains d'une légende : celles d'un grand coureur, correctes pour un passeur, ordinaires pour un cogneur */
+  const mains=clamp(Math.round(b.mn+m.mn+(L.poste==='Coureur'?Math.max(L.b[1],L.b[2])-2:L.poste==='Passeur'?L.b[2]-8:L.b[2])),40,97);
+  const p={id:S.nextId++,sexe:L.sexe,nom:L.nom,race:L.race,poste:L.poste,f:st('f',0),v:st('v',1),t:st('t',2),mn:mains,forme:ri(80,95),trait:'aucun',tete:'leg/'+L.id,
     blesse:0,suspendu:0,mort:false,cicatrices:0,etoiles:0,titulaire:false,entr:'repos',gain:null,saisons:3,
     buts:0,victimes:0,matchs:0,pd:0,cj:0,cr:0,sb:0,sv:0,sm:0,sj:0,spd:0,sn:0,snb:0,leg:L.id,pv:L.pv};
   p.cap={};STATS.forEach(k=>{p.cap[k]=clamp(p[k]+ri(2,5),p[k],99)});
