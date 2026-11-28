@@ -60,7 +60,8 @@ function ageInitial(opts,typeP){
 const gauss=(m,s)=>m+s*((R()+R()+R()-1.5)/.5);
 function profilCache(p,opts){
   const g=()=>clamp(Math.round(gauss(57,15)),20,95);
-  const h={m:g(),r:g(),c:g()};
+  const h={m:g(),r:g(),c:g(),k:g()};
+  if(p.trait==='vedette')h.k=Math.min(h.k,ri(24,58));if(p.trait==='fetard')h.k=Math.max(h.k,ri(55,85));
   if(p.trait==='verre')h.c=ri(20,38);if(p.trait==='coriace')h.c=ri(72,92);
   if(p.trait==='fetard')h.r=Math.min(h.r,ri(25,48));if(p.trait==='vedette')h.m=Math.max(h.m,ri(55,80));
   if(opts&&opts.leg){h.m=ri(76,95);h.r=ri(66,90);h.c=ri(60,88);if(p.pv==='roc')h.c=95;if(p.pv==='sangfroid')h.m=95}
@@ -77,6 +78,7 @@ function assurerCarriere(p){
   if(!p)return;
   if(p.age===undefined)p.age=p.leg?ri(26,31):p.veteran?ri(31,34):(p.jeune&&!p.saisons?ri(17,20):ri(21,27)+Math.min(p.saisons||0,4));
   if(!p.h)p.h=profilCache(p,p.leg?{leg:true}:{});
+  if(typeof p.h.k!=='number')p.h.k=clamp(Math.round(gauss(57,15)),20,95);
 }
 
 /* à l'entraînement : l'âge module les progrès, un vétéran parraine un jeune du même poste */
@@ -139,9 +141,13 @@ const CACHE={
      rev:'Les statisticiens de la Ligue des Royaumes la mesurent.'},
   c:{nom:'Robustesse',div:1,mots:['Fragile','Délicat','Correct','Robuste','Increvable'],
      desc:'Résiste aux coups (blessures jusqu\'à 35 % plus ou moins fréquentes) et vieillit mieux : un joueur robuste décline moins vite.',
-     rev:'Les médecins du Grand Bol de Bois savent l\'évaluer.'}
+     rev:'Les médecins du Grand Bol de Bois savent l\'évaluer.'},
+  /* LABO : la camaraderie */
+  k:{nom:'Camaraderie',div:3,mots:['Tête de lard','Ours','Correct','Bon camarade','Boute-en-train'],
+     desc:"Sa façon de vivre avec les autres. Des titulaires qui s'apprécient jouent mieux ensemble (jusqu'à +3 %), et les bons camarades nouent des amitiés qui rapportent encore. Une tête de lard glace le vestiaire et provoque des brouilles.",
+     rev:'Les aubergistes de la Ligue des Comtés savent tout.'}
 };
-const CACHE_IDS=['m','r','c'];
+const CACHE_IDS=['m','r','c','k'];
 const motCache=(k,v)=>CACHE[k].mots[v<=30?0:v<=45?1:v<=60?2:v<=75?3:4];
 const niveauCache=v=>v<=30?0:v<=45?1:v<=60?2:v<=75?3:4;
 const revele=(S,k)=>(S.divMax||S.div||4)<=CACHE[k].div;

@@ -161,7 +161,7 @@ const K={
 const niv=(T,role)=>T&&T.staff&&T.staff[role]?T.staff[role].niv:-1;
 const kk=(T,role,cle)=>K[cle][niv(T,role)+1];
 function nouveauStaff(role,n){if(n===undefined)n=wpick([0,1,2,3,4],x=>[30,30,22,13,5][x]);return{role,niv:n,nom:pick(ROLES[role].noms),sal:STAFF_SAL[n],prime:STAFF_PRIME[n]}}
-function candidatsStaff(){const c={};ROLE_IDS.forEach(r=>{const noms=new Set();c[r]=[];while(c[r].length<3){const s=nouveauStaff(r);if(noms.has(s.nom))continue;noms.add(s.nom);c[r].push(s)}c[r].sort((a,b)=>a.niv-b.niv)});return c}
+function candidatsStaff(nb){nb=nb||3;const c={};ROLE_IDS.forEach(r=>{const noms=new Set();c[r]=[];let g=0;while(c[r].length<nb&&g++<60){const s=nouveauStaff(r);if(noms.has(s.nom))continue;noms.add(s.nom);c[r].push(s)}c[r].sort((a,b)=>a.niv-b.niv)});return c}
 function staffIA(){const s={};ROLE_IDS.forEach(r=>{const n=wpick([-1,0,1,2,3],x=>[2,3,3,2,1][x+1]);if(n>=0)s[r]=nouveauStaff(r,n)});return s}
 function effetStaff(role,n){
   const i=n+1;
@@ -228,6 +228,8 @@ const ETATS=[
   {id:'orchestre',style:2,nom:'Le Grand Orchestre',cond:'7 passeurs titulaires',effet:"ils confisquent le ballon : l'adversaire le voit à peine, mais eux-mêmes concluent mal (−36 % en attaque). Fragiles sous les coups",att:.64,def:1.2,poss:.2,test:x=>x.p.Passeur>=7},
   {id:'pack',style:1,nom:'Le Pack',cond:'5 ou 6 trois-quarts titulaires',effet:"ni point fort ni point faible, et le plan de jeu adverse mord moitié moins sur eux",att:1.02,def:1.03,antiplan:.5,test:x=>x.p['Trois-quarts']===5||x.p['Trois-quarts']===6},
   {id:'bloc',style:2,nom:'Le Bloc',cond:'7 trois-quarts titulaires',effet:"aucun point faible : le plan de jeu adverse ne mord pas sur eux. Aucun point fort non plus",att:1,def:1.01,antiplan:1,test:x=>x.p['Trois-quarts']>=7},
+  {id:'copains',nom:'Bande de copains',cond:"des titulaires qui s'apprécient (leur camaraderie est cachée)",effet:'+3 % en attaque et en défense',att:1.03,def:1.03,test:x=>x.cam>=63},
+  {id:'glacial',nom:'Vestiaire glacial',cond:"des titulaires qui ne peuvent pas se voir (leur camaraderie est cachée)",effet:'−3 % en attaque et en défense',att:.97,def:.97,mal:true,test:x=>x.cam>0&&x.cam<=51},
   {id:'soude',nom:'Vestiaire soudé',cond:"les 7 mêmes titulaires qu'au match précédent",effet:'+3 % en attaque et en défense',att:1.03,def:1.03,test:x=>x.memes},
   {id:'horde',nom:'La Horde',cond:'un orque et un gobelin titulaires',effet:'+5 % en attaque : les gobelins filent dans le sillage des charges orques',att:1.05,test:x=>x.r.orque&&x.r.gobelin},
   {id:'alliance',nom:'Vieille alliance',cond:'un humain et un nain titulaires',effet:'+5 % en défense : ils ont déjà tenu des remparts ensemble',def:1.05,test:x=>x.r.humain&&x.r.nain},
@@ -247,8 +249,25 @@ function compterPostes(P){const p={Cogneur:0,'Trois-quarts':0,Coureur:0,Passeur:
 function etatsDe(T,P){
   const r={};P.forEach(j=>{if(j.temp)return;r[j.race]=(r[j.race]||0)+1});
   const vals=Object.values(r);const ids=P.map(j=>j.id).sort((a,b)=>a-b).join(',');
-  const cp=compterPostes(P);const x={r,p:cp,maxP:Math.max(...POSTES_BASE.map(po=>cp[po])),max:Math.max(0,...vals),nb:vals.length,memes:P.length===NB_TIT&&!P.some(j=>j.temp)&&T.dernier===ids};
-  return ETATS.filter(e=>e.test(x));
+  const cp=compterPostes(P);const avecH=P.filter(j=>!j.temp&&j.h&&typeof j.h.k==='number');
+  const x={cam:avecH.length>=5?avecH.reduce((s,j)=>s+j.h.k,0)/avecH.length:0,r,p:cp,maxP:Math.max(...POSTES_BASE.map(po=>cp[po])),max:Math.max(0,...vals),nb:vals.length,memes:P.length===NB_TIT&&!P.some(j=>j.temp)&&T.dernier===ids};
+  const out=ETATS.filter(e=>e.test(x));
+  /* les amitiés et les brouilles nées au fil des matchs ne comptent que si les deux joueurs sont alignés ensemble */
+  (T.liens||[]).forEach(L=>{const a=P.find(j=>j.id===L.a),b2=P.find(j=>j.id===L.b);if(!a||!b2)return;
+    out.push(L.k==='ami'?{id:'ami'+L.a+'-'+L.b,lien:true,nom:'Inséparables',cond:a.nom+' et '+b2.nom+' alignés ensemble',effet:'+1,5 % en attaque et en défense : ils se trouvent les yeux fermés',att:1.015,def:1.015}
+      :{id:'brouille'+L.a+'-'+L.b,lien:true,nom:'Brouille',cond:a.nom+' et '+b2.nom+' alignés ensemble',effet:"−2,5 % en attaque et en défense : ils ne se passent plus le ballon. Séparez-les, ou attendez que ça passe",att:.975,def:.975,mal:true})});
+  return out;
+}
+/* après un match, deux joueurs qui ont joué ensemble peuvent se lier ou se fâcher, selon leur camaraderie cachée */
+function lierJoueurs(T,joue){
+  T.liens=(T.liens||[]).filter(L=>T.joueurs.some(p=>p.id===L.a&&!p.mort)&&T.joueurs.some(p=>p.id===L.b&&!p.mort));
+  /* une brouille finit par passer */
+  T.liens=T.liens.filter(L=>L.k!=='brouille'||(L.n=(L.n||0)+1)<=6);
+  const P=joue.filter(p=>!p.temp&&!p.mort&&p.h&&typeof p.h.k==='number');if(P.length<2||R()>.16)return null;
+  const a=pick(P),b=pick(P.filter(p=>p!==a));if(T.liens.some(L=>(L.a===a.id&&L.b===b.id)||(L.a===b.id&&L.b===a.id)))return null;
+  let k=null;if(a.h.k+b.h.k>=132)k='ami';else if(Math.min(a.h.k,b.h.k)<=40&&R()<.7)k='brouille';if(!k)return null;
+  T.liens.push({a:a.id,b:b.id,k});if(T.liens.length>4)T.liens.shift();
+  return{k,a:a.nom,b:b.nom};
 }
 const dispo=p=>!p.mort&&p.blesse===0&&!p.suspendu;
 const puissance=p=>somme3(p)*(.8+.2*p.forme/100);
@@ -356,8 +375,19 @@ function jeuneDuPays(S,race){
   const p=nouveauJoueur(S,race||pick(RACE_IDS),-9,{jeune:true,portrait:'jeune'});
   STATS.forEach(k=>{p.cap[k]=clamp(p.cap[k]+8,p[k],95)});p.jeune=true;p.sal=1;p.gratuit=true;return p;
 }
+/* ---------- LABO : l'attractivité du club ----------
+   Elle ne dépend pas du classement : elle vient du stade, de la ferveur, de la fidélité (garder ses joueurs) et d'un jeu qui a du caractère.
+   Elle donne du CHOIX (plus de candidats au marché et au staff), jamais de meilleurs candidats. */
+function attractivite(S,T){
+  const stade=Math.min(35,STADE_IDS.reduce((s,k)=>s+nivStade(T,k),0)*5);
+  const ferveur=Math.round((T.pop||0)*.25);
+  const viv=T.joueurs.filter(p=>!p.mort);const fid=Math.min(20,Math.round((viv.length?viv.reduce((s,p)=>s+Math.min(4,p.saisons||0),0)/viv.length:0)*6));
+  const et=etatsDe(T,onzeDe(T).tit);const style=et.some(e=>e.style||e.id==='pur'||e.id==='clan'||e.id==='bric')?10:0;
+  const score=clamp(stade+ferveur+fid+style,0,100);
+  return{score,palier:score>=60?2:score>=32?1:0,detail:[['Stade',stade,35],['Ferveur du public',ferveur,25],['Fidélité (ancienneté des joueurs)',fid,20],['Jeu de caractère (style ou état de peuple)',style,10]]};
+}
 function nouveauMarche(S){
-  const T=S.teams[0];const n=kk(T,'chin','marche');const nv=niv(T,'chin');const manque=postesManquants(T);const out=[];
+  const T=S.teams[0];const attr=attractivite(S,T);const n=kk(T,'chin','marche')+attr.palier;const nv=niv(T,'chin');const manque=postesManquants(T);const out=[];
   for(let i=0;i<n;i++){
     /* tirés selon la demande ; les trois premiers sont de postes différents, pour qu'on ait toujours le choix */
     let poste=nv>=1&&i>=3&&manque.length&&R()<.6?pick(manque):wpick(POSTE_IDS,x=>DEMANDE[x]);
@@ -367,7 +397,18 @@ function nouveauMarche(S){
   /* rarement, une légende se présente au marché */
   if(R()<.06+.02*Math.max(0,nv)){const L=tirerLegende(S);if(L)out.push(L)}
   const b=kk(T,'chin','bruit');
-  out.forEach(p=>{p.vu={};STATS.forEach(k=>{p.vu[k]=clamp(p[k]+ri(-b,b),10,99)});p.vu.m=Math.max(0,marge(p)+ri(-Math.ceil(b/2),Math.ceil(b/2)))});
+  /* LABO : joueurs libres et joueurs sous contrat.
+     Sous contrat ailleurs : on paie un transfert (plus cher), mais ses notes sont sûres, il joue en ligue.
+     Libre : pas de transfert, une simple prime d'embauche, mais ses notes sont floues, et son prix est fixé sur ce flou. */
+  out.forEach(p=>{
+    if(p.leg){p.vu={};STATS.forEach(k=>{p.vu[k]=clamp(p[k]+ri(-b,b),10,99)});p.vu.m=Math.max(0,marge(p)+ri(-Math.ceil(b/2),Math.ceil(b/2)));return}
+    if(R()<.4){p.club=pick(CLUBS_IA.filter(c=>!S.teams.some(X=>X.nom===c.nom)).concat(CLUBS_IA)).court;p.flou=0;p.vu={m:Math.max(0,marge(p)+ri(-Math.ceil(b/2),Math.ceil(b/2)))};STATS.forEach(k=>{p.vu[k]=p[k]})}
+    else{p.libre=true;const bb=Math.round(b*1.25)+1;p.flou=bb;p.vu={};STATS.forEach(k=>{p.vu[k]=clamp(p[k]+ri(-bb,bb),10,99)});p.vu.m=Math.max(0,marge(p)+ri(-Math.ceil(bb/2),Math.ceil(bb/2)));
+      p.demande=Math.max(5,Math.round((valeur(p)+STATS.reduce((s,k)=>s+p.vu[k]-p[k],0)/5+(p.vu.m-marge(p))/3)*.72))}
+  });
+  /* le contrepoids : un club mal classé attire un jeune prometteur qui veut du temps de jeu */
+  if(S.jour>=3&&rangDe(S,T.id)>S.teams.length/2&&R()<.5){const y=nouveauJoueur(S,pick(RACE_IDS),ri(-6,-1)+divDe(S).marche,{poste:wpick(POSTE_IDS,x=>DEMANDE[x]),jeune:true});STATS.forEach(k=>{y.cap[k]=clamp(y.cap[k]+7,y[k],95)});
+    y.promesse=true;y.libre=true;y.flou=b;y.vu={};STATS.forEach(k=>{y.vu[k]=clamp(y[k]+ri(-b,b),10,99)});y.vu.m=Math.max(0,marge(y)+ri(-Math.ceil(b/2),Math.ceil(b/2)));y.demande=Math.max(5,Math.round(valeur(y)*.6));out.push(y)}
   /* le centre de formation propose toujours un jeune gratuit quand l'effectif est court */
   if(T.joueurs.length<EFF_IA){const y=jeuneDuPays(S,T.joueurs.length?pick(T.joueurs).race:null);y.vu={f:y.f,v:y.v,t:y.t,m:marge(y)};out.unshift(y)}
   if(nv>=1){
@@ -377,7 +418,7 @@ function nouveauMarche(S){
   }
   return out;
 }
-const prixMarche=(S,p)=>p.gratuit?0:Math.max(5,Math.round(valeur(p)*(p.leg?1.6:1)*(1-kk(S.teams[0],'chin','remise')/100)));
+const prixMarche=(S,p)=>p.gratuit?0:Math.max(5,Math.round((p.demande||valeur(p)*(p.leg?1.6:p.club?1.15:1))*(1-kk(S.teams[0],'chin','remise')/100)));
 
 /* ---------- Entraînement ---------- */
 const ENTR={repos:{nom:'Repos',court:'Repos'},f:{nom:'Force',court:'FOR'},v:{nom:'Vitesse',court:'VIT'},t:{nom:'Adresse',court:'ADR'},sp:{nom:'Spécialité',court:'SPÉ'}};
@@ -541,7 +582,7 @@ function notes(c){
   const comp=n<NB_TIT?Math.pow(NB_TIT/n,.35):1;
   /* face à un Pack ou à un Bloc, l'avantage du plan de jeu fond */
   const plan=c.adv&&c.adv.antiplan&&c.plan>1?1+(c.plan-1)*(1-c.adv.antiplan):c.plan;
-  let att=A/NB_TIT*1.12*comp*c.mAtt*plan*c.marqueur,def=D/NB_TIT*comp*c.mDef*plan;
+  let att=A/NB_TIT*1.14*comp*c.mAtt*plan*c.marqueur,def=D/NB_TIT*comp*c.mDef*plan;
   const tc=TACTIQUES[c.tactique]||TACTIQUES.equilibre;const cp=compterPostes(P);const actif=!tc.cond||tc.cond(cp);
   if(actif){att*=tc.att||1;def*=tc.def||1}
   att*=c.tacMult;def*=c.tacMult;
@@ -720,9 +761,10 @@ function simMatch(S,TA,TB,opts){
     c.joue.forEach(p=>{if(p.temp)return;const x=P(p);
       let n=5.5+1.5*x.b+.9*x.pd+.25*x.occ+.6*x.sort-.7*x.cj-2*x.cr+r+((placeDe[p.id]||p.poste)==='Cogneur'&&res[o]<=1?.5:0)+(p.forme-60)/50+U(-.5,.5)-(x.bl?.4:0);
       n=Math.round(clamp(n,2,10)*2)/2;notesM[p.id]=n;p.sn+=n;p.snb++})});
+  const liens=C.map(c=>lierJoueurs(c.T,[...c.joue]));
   C.forEach(c=>{c.T.dernier=c.depart;const souf=[...c.joue].some(p=>p.pv==='souffle');c.idole=[...c.joue].some(p=>p.pv==='idole');c.T.joueurs.forEach(p=>{if(p.mort)return;if(typeof p.arr==='number')p.arr++;if(c.joue.has(p)){p.matchs++;p.sm++;p.forme=clamp(p.forme-(p.race==='nain'?11:16)-(c.tactique==='pressing'?8:0)+(souf&&p.pv!=='souffle'?5:0),5,100)}else p.forme=clamp(p.forme+8,5,100)})});
   const joueursDe=i=>[...C[i].joue].filter(p=>!p.temp).map(p=>({id:p.id,nom:p.nom,poste:p.poste,place:placeDe[p.id]||p.poste,race:p.race,tete:p.tete,sexe:p.sexe,leg:p.leg,note:notesM[p.id],perf:perf[p.id]||{}}));
-  return{dom:TA.id,ext:TB.id,score:res,ev,pre,rapport,etats:[C[0].etats,C[1].etats],etatsMal:[C[0].etatsMal,C[1].etatsMal],
+  return{dom:TA.id,ext:TB.id,liens,score:res,ev,pre,rapport,etats:[C[0].etats,C[1].etats],etatsMal:[C[0].etatsMal,C[1].etatsMal],
     st:[C[0].st,C[1].st],stag:[C[0].stag,C[1].stag],consigne:[C[0].consigne,C[1].consigne],pot:[opts[0].pot,opts[1].pot],plan:[C[0].plan,C[1].plan],tactique:[C[0].tactique,C[1].tactique],duel,
     marques:bilanMarq,idole:[!!C[0].idole,!!C[1].idole],joueurs:[joueursDe(0),joueursDe(1)],rangs:[rangDe(S,TA.id),rangDe(S,TB.id)],public:300+(TA.pop||40)*55+ri(0,600)};
 }
@@ -855,6 +897,7 @@ function bilanClub(S,moi,x){
   const g=G(S,moi);const jour=x.jour,monMatch=x.res,cup=x.cup,infirmerie=x.infirmerie;
   const i=monMatch.dom===moi.id?0:1,bm=monMatch.score[i],be=monMatch.score[1-i];
   const mortsMatch=monMatch.ev.filter(e=>e.k==='mort').length;
+  const lien=monMatch.liens&&monMatch.liens[i];if(lien)infirmerie.push(lien.k==='ami'?lien.a+' et '+lien.b+' ne se quittent plus depuis ce match : on les a vus partager la même chope. Alignés ensemble, ils jouent mieux.':lien.a+' et '+lien.b+' en sont venus aux mains dans le vestiaire. Alignés ensemble, ils jouent moins bien : la brouille passera avec le temps.');
   if(g.plumes){infirmerie.push('Toute l\'équipe a joué coiffée de chapeaux à plumes, offerts par le baron de Moisy-sur-Fange. Les adversaires ont ri. Pas longtemps.');g.plumes=false}
   // comptes du club
   const sp=sponsorDe(g.sponsor);const comptes=[];
@@ -999,7 +1042,7 @@ function passerIntersaison(S){
   H.forEach(moi=>{const g=G(S,moi);
   g.inter.arrivees=genererArrivees(S,moi);
   g.sponsor=null;g.offresSponsor=offresSponsor();
-  g.candidats=candidatsStaff();
+  g.candidats=candidatsStaff(3+attractivite(S,moi).palier);
   g.rapport=null;if(S.multi)g.dep=0});
   S.opts={};
 }

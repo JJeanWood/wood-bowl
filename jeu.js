@@ -406,11 +406,18 @@ function relationMarche(p){const moi=moiT();const races=new Set(onzeDe(moi).tit.
   if(al.length)h+='<span class="puce gain"'+aide('Ce joueur est l\'allié de vos titulaires '+listeP(al)+' : le titulariser avec eux active un bonus d\'équipe.')+'>Allié de vos '+listeP(al)+'</span>';
   if(ri2.length)h+='<span class="puce alerte"'+aide('Rival de vos titulaires '+listeP(ri2)+' : les aligner ensemble déclenche un malus, sauf si un humain fait le médiateur.')+'>Rival de vos '+listeP(ri2)+'</span>';
   return h}
+/* LABO : libre ou sous contrat */
+function statutMarche(p){
+  if(p.promesse)return'<div class="coeur-txt" style="color:var(--bon)"'+aide('Un jeune prometteur qui cherche du temps de jeu : il préfère un club mal classé où il jouera vite. Il ne se présente que chez les clubs de la seconde moitié du classement. Gros potentiel, prime réduite.')+'>Jeune prometteur · veut du temps de jeu</div>';
+  if(p.club)return'<div class="coeur-txt" style="color:var(--creme)"'+aide('Il joue déjà en ligue : ses notes sont sûres, vous voyez les vraies. En échange, il faut payer son transfert à son club, plus cher qu\'une simple prime.')+'>Sous contrat à '+esc(p.club)+' · notes sûres</div>';
+  if(p.libre)return'<div class="coeur-txt" style="color:var(--creme-sourde)"'+aide('Sans club : pas de transfert à payer, seulement une prime d\'embauche, moins chère. Mais personne ne l\'a vu jouer en ligue : ses notes sont floues (à '+p.flou+' points près), et son prix est fixé sur ces notes floues. Bonne ou mauvaise surprise, vous le saurez à la signature.')+'>Joueur libre · notes floues (± '+p.flou+')</div>';
+  return'';
+}
 function carteMarche(p,T){
   const moi=moiT();const b=kk(moi,'chin','bruit');const prix=prixMarche(S,p);const plein=moi.joueurs.length>=MAX_EFFECTIF;const bloque=huissiers(S)&&!p.gratuit;
-  return'<div class="carte'+(p.coeur?' coeur':'')+(p.leg?' leg':'')+'">'+(p.leg?'<div class="bandeau-leg">✦ Légende de passage au marché ✦</div>':'')+vignette(p,'#7a6650')+'<div style="min-width:0"><button class="nom" data-act="fiche" data-id="'+p.id+'">'+esc(p.nom)+'</button>'+(p.coeur?'<div class="coeur-txt">Coup de cœur de votre chineur</div>':'')+(p.gratuit?'<div class="coeur-txt" style="color:var(--bon)"'+aide('Jeune du pays : le centre de formation vous le propose gratuitement tant que votre effectif compte moins de 7 joueurs, même si la caisse est dans le rouge. Il est faible au départ mais a un gros potentiel, et ne coûte que 1 po par match pendant sa première saison.')+'>Jeune du pays · gratuit</div>':'')+'<div class="puces">'+puces(p)+relationMarche(p)+'</div>'+jaugesJoueur(p,p.vu,p.gratuit?0:b)
+  return'<div class="carte'+(p.coeur?' coeur':'')+(p.leg?' leg':'')+'">'+(p.leg?'<div class="bandeau-leg">✦ Légende de passage au marché ✦</div>':'')+vignette(p,'#7a6650')+'<div style="min-width:0"><button class="nom" data-act="fiche" data-id="'+p.id+'">'+esc(p.nom)+'</button>'+(p.coeur?'<div class="coeur-txt">Coup de cœur de votre chineur</div>':'')+(p.gratuit?'<div class="coeur-txt" style="color:var(--bon)"'+aide('Jeune du pays : le centre de formation vous le propose gratuitement tant que votre effectif compte moins de 7 joueurs, même si la caisse est dans le rouge. Il est faible au départ mais a un gros potentiel, et ne coûte que 1 po par match pendant sa première saison.')+'>Jeune du pays · gratuit</div>':'')+statutMarche(p)+'<div class="puces">'+puces(p)+relationMarche(p)+'</div>'+jaugesJoueur(p,p.vu,p.gratuit?0:(typeof p.flou==='number'?p.flou:b))
     +'<div style="font-size:12.5px;color:var(--creme-sourde);margin-top:3px">Potentiel '+etoiles(etoilesPot(p.vu.m))+(b?' <span style="opacity:.8">(estimé)</span>':'')+' · '+ageCourt(p)+'</div>'+chezVous(p,p.vu)+'</div>'
-    +'<div class="achat"><div class="prix-po num">'+(prix?prix+' po':'Gratuit')+'</div><div style="font-size:12px;color:var(--creme-sourde);text-align:center">'+(p.gratuit?p.sal:salaire(p))+' po/match</div><button class="discret" data-act="acheter" data-id="'+p.id+'" '+((prix>0&&moi.or<prix)||plein||bloque?'disabled':'')+'>Recruter</button></div></div>';
+    +'<div class="achat"><div class="prix-po num">'+(prix?prix+' po':'Gratuit')+'</div>'+(p.club?'<div style="font-size:11px;color:var(--creme-sourde);text-align:center">transfert</div>':p.libre?'<div style="font-size:11px;color:var(--creme-sourde);text-align:center">prime d\'embauche</div>':'')+'<div style="font-size:12px;color:var(--creme-sourde);text-align:center">'+(p.gratuit?p.sal:salaire(p))+' po/match</div><button class="discret" data-act="acheter" data-id="'+p.id+'" '+((prix>0&&moi.or<prix)||plein||bloque?'disabled':'')+'>Recruter</button></div></div>';
 }
 function vueMarche(){
   const moi=moiT();let h=boutonTiroir();
@@ -471,6 +478,7 @@ function vueClubComplet(){
     return'<div class="batiment"><div class="niveaux">'+[0,1,2,3].map(x=>'<i class="'+(x<=n?'ok':'')+'"></i>').join('')+'</div><div><b>'+B.nom+'</b> <span class="niv niv'+Math.min(4,n+1)+'">'+esc(B.niv[n])+'</span><p>'+esc(B.effet(n))+'</p>'+(n<3?'<p class="note" style="margin:2px 0 0">Prochain niveau, '+esc(B.niv[n+1])+' : '+esc(B.effet(n+1))+'</p>':'<p class="note" style="margin:2px 0 0">Niveau maximum.</p>')+'</div>'
       +(n<3?'<button class="discret or" data-act="stade" data-v="'+k+'"'+(moi.or<B.cout[n]||huissiers(S)?' disabled':'')+'>'+B.cout[n]+' po</button>':'')+'</div>'}).join('')+'<p class="note" style="margin:6px 0 0">Les travaux sont définitifs et ne coûtent rien à l\'entretien : c\'est là que va l\'argent des bonnes saisons.</p></div></section>';
   h+='<section class="bloc"><h2>Ferveur du public <small>'+moi.pop+' sur 100</small></h2><div class="panneau"><div class="ferveur"><i style="width:'+moi.pop+'%"></i></div><p class="note" style="margin:0">Monte avec les victoires (+3), les gros scores, les adversaires sortis sur civière et les drames ; baisse avec les défaites (−2) et les scandales. Chaque point rapporte environ 0,3 po par match à domicile.</p></div></section>';
+  h+=blocAttractivite(moi);
   h+='<section class="bloc"><h2>Sponsor <small>'+(sp?'sous contrat':'à choisir')+'</small></h2><div class="panneau"><div class="sponsors">';
   if(sp)h+='<div class="sponsor actif"><div><b>'+esc(sp.nom)+'</b><p>'+esc(sp.desc)+'</p></div><span class="niv niv2">Signé</span></div><p class="note" style="margin:0">Le contrat court jusqu\'à la fin de la saison.</p>';
   else h+='<p class="note" style="margin:0 0 4px">Trois maisons vous proposent un contrat pour la saison. Un seul choix, sans retour.</p>'+S.offresSponsor.map(id=>{const s=sponsorDe(id);return'<div class="sponsor"><div><b>'+esc(s.nom)+'</b><p>'+esc(s.desc)+'</p></div><button class="discret or" data-act="sponsor" data-v="'+id+'">Signer</button></div>'}).join('');
@@ -857,11 +865,19 @@ function vueVestiaire(){
   if(!inter)h+='<div class="barre-jouer"><button class="gros" data-act="jouer">Jouer la journée '+(S.jour+1)+'</button></div>';
   return h;
 }
+/* LABO : l'attractivité du club */
+function blocAttractivite(T){
+  const a=attractivite(S,T);
+  return'<section class="bloc"><h2>Attractivité du club <small>'+a.score+' sur 100</small></h2><div class="panneau"><div class="ferveur"><i style="width:'+a.score+'%"></i></div>'
+    +'<p class="note" style="margin:0 0 6px">Un club attractif a plus de <b>choix</b>, pas de meilleurs candidats : '+(a.palier===2?'<b>2 candidats de plus</b> au marché chaque journée, et 5 candidats par poste de staff à l\'intersaison.':a.palier===1?'<b>1 candidat de plus</b> au marché chaque journée, et 4 candidats par poste de staff à l\'intersaison. Palier suivant à 60.':'aucun bonus pour l\'instant. Premier palier à 32, second à 60.')+'</p>'
+    +'<ul class="note" style="margin:0;padding-left:18px">'+a.detail.map(d=>'<li>'+d[0]+' : <b>'+d[1]+'</b> sur '+d[2]+'</li>').join('')+'</ul>'
+    +'<p class="note" style="margin:6px 0 0">Le classement n\'y compte pas. À l\'inverse, un club de la seconde moitié du tableau voit parfois se présenter un jeune prometteur qui veut du temps de jeu.</p></div></section>';
+}
 function vueClub(){
   const tabs=[['finances','Finances'],['stade','Stade'],['staff','Staff'],['options','Options']];
   if(!tabs.some(t=>t[0]===sous.club))sous.club='finances';
   const tout=vueClubComplet();
-  const g={finances:/Trésorerie|Ferveur/,stade:/stade/,staff:/Staff|Sponsor/,options:/Apparence/}[sous.club];
+  const g={finances:/Trésorerie|Ferveur|Attractivité/,stade:/stade/,staff:/Staff|Sponsor/,options:/Apparence/}[sous.club];
   let h=barreSous('club',tabs)+sections(tout,g);
   if(sous.club==='options')h+='<section class="bloc"><h2>Partie</h2><div class="panneau"><div class="ligne-boutons"><button class="discret or" data-act="titre">Écran titre</button><button class="discret" data-act="exporter" data-v="'+partieId+'">Exporter ce club</button><button class="discret danger" data-act="suppr" data-v="'+partieId+'">Supprimer ce club</button></div><p class="note">Votre club est sauvegardé automatiquement sur cet appareil, à chaque action. L\'écran titre permet de changer d\'équipe ou d\'en fonder une nouvelle.</p></div></section>';
   return h;
@@ -1072,7 +1088,7 @@ function action(b,ev){
     case'renvoyer':{const p=moi.joueurs.find(p=>p.id===fiche);if(p&&!p.pret)demander('Renvoyer '+p.nom+' ?',(p.sexe==='f'?'Elle':'Il')+' quitte le club définitivement. '+(indemnite(p)?'Vous récupérez '+indemnite(p)+' po et économisez ':tropRecent(p)?'Arrivé depuis moins de '+MATCHS_AVANT_REVENTE+' matchs (encore '+(MATCHS_AVANT_REVENTE-p.arr)+'), son départ ne rapporte rien. Vous économisez ':'Venu gratuitement, son départ ne rapporte rien. Vous économisez ')+p.sal+' po par match.','Renvoyer',()=>{if(moi.joueurs.length>MIN_EFFECTIF){moi.or+=indemnite(p);moi.joueurs=moi.joueurs.filter(x=>x!==p);fiche=null}});break}
     case'acheter':{const p=S.marche.find(p=>p.id===id);if(!p)break;const prix=prixMarche(S,p);
       demander('Recruter '+p.nom+' ?',p.poste+' '+RACES[p.race].nom.toLowerCase()+'. Prix : <b>'+(prix?prix+' po':'gratuit')+'</b>, puis '+(p.gratuit?p.sal:salaire(p))+' po par match. '+(p.sexe==='f'?'Elle arrive':'Il arrive')+' tout de suite et s\'entraîne avant le prochain match.',(prix?'Recruter pour '+prix+' po':'Signer gratuitement'),()=>{
-        if((!prix||moi.or>=prix)&&moi.joueurs.length<MAX_EFFECTIF&&(p.gratuit||!huissiers(S))){moi.or-=prix;delete p.vu;delete p.coeur;p.titulaire=false;if(!p.gratuit)p.sal=salaire(p);S.marche=S.marche.filter(x=>x!==p);arriver(p,prix);moi.joueurs.push(p);varierTetes(moi,p);Son.jouer('piece');
+        if((!prix||moi.or>=prix)&&moi.joueurs.length<MAX_EFFECTIF&&(p.gratuit||!huissiers(S))){moi.or-=prix;delete p.vu;delete p.coeur;delete p.flou;delete p.demande;delete p.club;delete p.libre;delete p.promesse;p.titulaire=false;if(!p.gratuit)p.sal=salaire(p);S.marche=S.marche.filter(x=>x!==p);arriver(p,prix);moi.joueurs.push(p);varierTetes(moi,p);Son.jouer('piece');
           informer('Bienvenue au club','Ses vraies notes : force '+p.f+', vitesse '+p.v+', adresse '+p.t+'. Potentiel '+etoiles(etoilesPot(marge(p)))+'.','piece')}});break}
     case'filtre':filtre=v;break;
     case'sous':{const[a,b2]=v.split(':');sous[a]=b2;window.scrollTo(0,0);break}

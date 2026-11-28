@@ -14,12 +14,16 @@ Le Labo est le brouillon de Wood Bowl : une copie du jeu, en solo, publiée comm
 |---|---|
 | 7 joueurs sur le terrain, effectif maximum 11 (minimum 7) | **dans le Labo** (28/11/2026) |
 | Poste de trois-quarts (3/4), polyvalent : force et vitesse à parts égales | **dans le Labo** |
-| Note « Balle » coupée en Passe (`t`) et Mains (`mn`) | **dans le Labo** |
+| Note « Balle » coupée en Passe et Mains | **retiré** (28/11/2026) : la Passe ne servait qu'aux passeurs. La note s'appelle maintenant **Adresse** (`t`) |
 | 7 places fixes avec placement automatique | **retiré** (28/11/2026) : Juju préfère que chacun garde son poste et qu'on compose librement |
 | Styles de poste : à partir de 5 titulaires du même poste (Bande de brutes / Le Rouleau, La Charge / La Cavalerie, La Fanfare / Le Grand Orchestre, Le Pack / Le Bloc), un point fort et un point faible ; le malus « sans tel poste » disparaît | **dans le Labo** |
 | Chaque peuple joue chaque poste à sa façon | en discussion |
-| Compétence cachée « esprit d'équipe » (le Liant) | en discussion |
-| Nouveaux peuples (Ratiers, morts-vivants, ogres…) | en discussion |
+| Camaraderie (note cachée `h.k`) : états « Bande de copains » / « Vestiaire glacial », amitiés et brouilles entre deux joueurs (`T.liens`) | **dans le Labo** |
+| Le Pilier : poste facultatif, un seul utile à la fois | **dans le Labo** |
+| Joueurs libres (prime, notes floues) et sous contrat (transfert, notes sûres) | **dans le Labo** |
+| Attractivité du club (stade, ferveur, fidélité, style) : plus de choix au marché et au staff ; jeune prometteur pour les clubs mal classés | **dans le Labo** |
+| Marché tiré selon la demande des clubs (`DEMANDE`) | **dans le Labo** |
+| Nouveaux peuples : Ratiers d'abord ; Mutants ; Suce-cervelle et Vampires en joueurs rares ; ogres, trolls, minotaures comme Piliers | en attente des portraits |
 
 ## Étape 1 : ce qui a changé dans le code (pour le report sur `main`)
 
@@ -35,3 +39,10 @@ Le Labo est le brouillon de Wood Bowl : une copie du jeu, en solo, publiée comm
 - Entre styles totaux : le Rouleau bat la Cavalerie et l'Orchestre (1,75 point), l'Orchestre bat nettement la Cavalerie, le Bloc fait jeu égal avec tous.
 - Au passage : défense du coureur ×0,66 et du passeur ×0,67 (au lieu de 0,7), Jambes de feu +3 % / −4 %, Jeu léché +2 %, attaque générale ×1,10.
 - **Pas fait** : aucun club de l'ordinateur ne joue un style ; `placer` et `placesPrevues` restent dans le code mais ne servent plus.
+
+## Étape 2 (28/11/2026)
+
+- Les deux failles (renvoi d'un joueur gratuit, offres retirées à volonté) sont corrigées **dans l'appli** (`main`) et reprises ici : `arriver`, `tropRecent`, `indemnite`, `I.tires`.
+- Pilier : `POSTES.Pilier`, `POSTES_BASE` (les quatre postes qui comptent pour les styles et les manques), état « Embouteillage » à 2 piliers, salaire ×1,6, `c.effondre` quand il sort. Mesuré : une équipe avec un pilier vaut une équipe sans (1,40 à 1,46 point par match contre 1,44), 1,57 avec trois coureurs.
+- Réglages : attaque ×1,14, salaires ×0,72, Cavalerie −18 % en défense, Orchestre −36 % en attaque, Rouleau +20 % / +20 %.
+- **Pas fait** : camaraderie et défaites (encaisser mieux une défaite), piliers et joueurs libres en ligue entre amis, portraits propres aux piliers (ils portent ceux de leur peuple).
