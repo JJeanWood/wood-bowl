@@ -11,6 +11,7 @@ Matchs simulés, gazette « L'Écho du Gourdin », portraits façon cartes de ba
 - Appli installable (PWA) servie par GitHub Pages : https://jjeanwood.github.io/wood-bowl/ (branche `main`, racine).
 - Chaque push sur `main` met l'appli à jour en une à deux minutes.
 - Le service worker (`sw.js`) charge le code réseau d'abord et les médias cache d'abord. Changer `VERSION` dans `sw.js` pour forcer le renouvellement du cache des images/musiques.
+- **Le Labo** : brouillon du jeu où Juju essaie ses idées avant l'appli. Branche `labo` (jamais déployée) + artefact Claude privé ; mode d'emploi et liste des idées dans `LABO.md` sur cette branche. Ne rien mettre sur `main` tant que Juju n'a pas dit « passe-le dans l'appli ».
 - Une copie de test existe aussi comme artefact Claude (slug c334b891-b0fb-4f92-ae2b-a14971b98965, public : republier avec `shared_live:"public"` et `artifact_title:"Wood Bowl"`).
 
 ## Architecture

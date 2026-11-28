@@ -705,7 +705,7 @@ function simMatch(S,TA,TB,opts){
     c.joue.forEach(p=>{if(p.temp)return;const x=P(p);
       let n=5.5+1.5*x.b+.9*x.pd+.25*x.occ+.6*x.sort-.7*x.cj-2*x.cr+r+((placeDe[p.id]||p.poste)==='Cogneur'&&res[o]<=1?.5:0)+(p.forme-60)/50+U(-.5,.5)-(x.bl?.4:0);
       n=Math.round(clamp(n,2,10)*2)/2;notesM[p.id]=n;p.sn+=n;p.snb++})});
-  C.forEach(c=>{c.T.dernier=c.depart;const souf=[...c.joue].some(p=>p.pv==='souffle');c.idole=[...c.joue].some(p=>p.pv==='idole');c.T.joueurs.forEach(p=>{if(p.mort)return;if(c.joue.has(p)){p.matchs++;p.sm++;p.forme=clamp(p.forme-(p.race==='nain'?11:16)-(c.tactique==='pressing'?8:0)+(souf&&p.pv!=='souffle'?5:0),5,100)}else p.forme=clamp(p.forme+8,5,100)})});
+  C.forEach(c=>{c.T.dernier=c.depart;const souf=[...c.joue].some(p=>p.pv==='souffle');c.idole=[...c.joue].some(p=>p.pv==='idole');c.T.joueurs.forEach(p=>{if(p.mort)return;if(typeof p.arr==='number')p.arr++;if(c.joue.has(p)){p.matchs++;p.sm++;p.forme=clamp(p.forme-(p.race==='nain'?11:16)-(c.tactique==='pressing'?8:0)+(souf&&p.pv!=='souffle'?5:0),5,100)}else p.forme=clamp(p.forme+8,5,100)})});
   const joueursDe=i=>[...C[i].joue].filter(p=>!p.temp).map(p=>({id:p.id,nom:p.nom,poste:p.poste,place:placeDe[p.id]||p.poste,race:p.race,tete:p.tete,sexe:p.sexe,leg:p.leg,note:notesM[p.id],perf:perf[p.id]||{}}));
   return{dom:TA.id,ext:TB.id,score:res,ev,pre,rapport,etats:[C[0].etats,C[1].etats],etatsMal:[C[0].etatsMal,C[1].etatsMal],
     st:[C[0].st,C[1].st],stag:[C[0].stag,C[1].stag],consigne:[C[0].consigne,C[1].consigne],pot:[opts[0].pot,opts[1].pot],plan:[C[0].plan,C[1].plan],tactique:[C[0].tactique,C[1].tactique],duel,
@@ -917,12 +917,12 @@ function tirerEvenement(S,M){
 function resoudreEvenement(S,oui,M){
   const T=moiDe(S,M),g=G(S,T);
   const e=g.evt;if(!e)return null;g.evt=null;if(!oui)return null;
-  if(e.k==='veteran'){if(T.joueurs.length>=MAX_EFFECTIF)return"Effectif complet : renvoyez quelqu'un d'abord.";e.p.titulaire=false;T.joueurs.push(e.p);varierTetes(T,e.p);return e.p.nom+' rejoint le club.'}
+  if(e.k==='veteran'){if(T.joueurs.length>=MAX_EFFECTIF)return"Effectif complet : renvoyez quelqu'un d'abord.";e.p.titulaire=false;arriver(e.p,0);T.joueurs.push(e.p);varierTetes(T,e.p);return e.p.nom+' rejoint le club.'}
   if(e.k==='mercenaire'){if(T.or<e.cout)return'Il vous faut '+e.cout+' po.';if(T.joueurs.length>=MAX_EFFECTIF)return'Effectif complet.';T.or-=e.cout;e.p.titulaire=true;T.joueurs.push(e.p);varierTetes(T,e.p);return e.p.nom+' jouera le prochain match, puis repartira.'}
   if(e.k==='collecte'||e.k==='mecene'){T.or+=e.po;if(e.k==='mecene')g.plumes=true;return'+'+e.po+' po dans la caisse.'}
   if(e.k==='guerisseur'){const p=T.joueurs.find(x=>x.id===e.cible);if(p){p.blesse=0;p.forme=Math.max(40,p.forme-10)}return p?p.nom+' est guéri (et sent la pommade).':null}
-  if(e.k==='transfuge'){const A=S.teams[e.de];const p=A&&A.joueurs.find(x=>x.id===e.p);if(!p)return"Il a changé d'avis.";if(T.joueurs.length>=MAX_EFFECTIF)return'Effectif complet.';A.joueurs=A.joueurs.filter(x=>x!==p);p.titulaire=false;T.joueurs.push(p);varierTetes(T,p);return p.nom+' rejoint le club.'}
-  if(e.k==='invite'){if(T.joueurs.length>=MAX_EFFECTIF){g.evt=e;return"Effectif complet : libérez une place, il attend à la porte."}if(T.or<(e.cout||0)){g.evt=e;return'Il vous faut '+e.cout+' po.'}T.or-=(e.cout||0);e.p.titulaire=false;T.joueurs.push(e.p);return e.p.nom+' rejoint le club.'}
+  if(e.k==='transfuge'){const A=S.teams[e.de];const p=A&&A.joueurs.find(x=>x.id===e.p);if(!p)return"Il a changé d'avis.";if(T.joueurs.length>=MAX_EFFECTIF)return'Effectif complet.';A.joueurs=A.joueurs.filter(x=>x!==p);p.titulaire=false;arriver(p,0);T.joueurs.push(p);varierTetes(T,p);return p.nom+' rejoint le club.'}
+  if(e.k==='invite'){if(T.joueurs.length>=MAX_EFFECTIF){g.evt=e;return"Effectif complet : libérez une place, il attend à la porte."}if(T.or<(e.cout||0)){g.evt=e;return'Il vous faut '+e.cout+' po.'}T.or-=(e.cout||0);e.p.titulaire=false;arriver(e.p,e.cout||0);T.joueurs.push(e.p);return e.p.nom+' rejoint le club.'}
   if(e.k==='banquier'){return emprunter(S,T)?'+'+PRET.montant+' po. Remboursement : '+PRET.parMatch+' po par match.':null}
   return null;
 }
@@ -1030,7 +1030,7 @@ function reponseArrivee(S,idx,oui,M){
   if(moi.or<a.prime)return'Il vous faut '+a.prime+' po.';
   if(a.k==='migrant'){const T=S.teams[a.de];if(!T||!T.joueurs.includes(a.p)){I.arrivees.splice(idx,1);return'Il a déjà signé ailleurs.'}T.joueurs=T.joueurs.filter(x=>x!==a.p)}
   moi.or-=a.prime;a.p.titulaire=false;a.p.entr='repos';if(a.k!=='migrant')a.p.sal=salaire(a.p);
-  moi.joueurs.push(a.p);varierTetes(moi,a.p);I.arrivees.splice(idx,1);I.journal.push(a.p.nom+' rejoint le club');
+  arriver(a.p,a.prime);moi.joueurs.push(a.p);varierTetes(moi,a.p);I.arrivees.splice(idx,1);I.journal.push(a.p.nom+' rejoint le club');
   return a.p.nom+' rejoint le club !';
 }
 function equipeDe(S,id){return S.teams.find(T=>T.joueurs.some(p=>p.id===id))||null}
@@ -1064,15 +1064,25 @@ function executerEchange(S,cibleId,donneIds,po,M){
   const moi=moiDe(S,M);const I=G(S,moi).inter;const T=equipeDe(S,cibleId);const cible=T.joueurs.find(p=>p.id===cibleId);
   const donnes=moi.joueurs.filter(p=>donneIds.includes(p.id));
   T.joueurs=T.joueurs.filter(p=>p!==cible).concat(donnes);moi.joueurs=moi.joueurs.filter(p=>!donnes.includes(p)).concat([cible]);
-  donnes.forEach(p=>{p.titulaire=false;p.entr='repos'});cible.titulaire=false;cible.entr='repos';cible.sal=salaire(cible);
+  donnes.forEach(p=>{p.titulaire=false;p.entr='repos'});cible.titulaire=false;cible.entr='repos';cible.sal=salaire(cible);arriver(cible,valeur(cible));
   moi.or-=po;T.liste=T.liste.filter(id=>id!==cibleId);moi.liste=moi.liste.filter(id=>!donneIds.includes(id));
   I.recues=I.recues.filter(o=>!donneIds.includes(o.veut)&&o.donne!==cibleId);
   varierTetes(moi,cible);donnes.forEach(p=>varierTetes(T,p));
   I.faits++;I.journal.push(cible.nom+' arrive de '+T.court+(donnes.length?' contre '+donnes.map(p=>p.nom).join(' et '):'')+(po>0?(donnes.length?' et ':' contre ')+po+' po':po<0?', avec '+(-po)+' po en plus':''));
 }
+/* ---------- Garde-fous : pas d'argent facile ----------
+   On note ce qu'un joueur a coûté et quand il est arrivé. Un renvoi ne rapporte jamais plus que 40 % de ce prix
+   (donc rien pour un joueur venu gratuitement), et rien du tout avant 5 matchs du club (qu'il les ait joués ou non).
+   Un joueur arrivé depuis moins de 5 matchs ne peut pas non plus être mis sur la liste des transferts. */
+const MATCHS_AVANT_REVENTE=5;
+function arriver(p,cout){p.arr=0;p.cout=Math.max(0,Math.round(cout||0));return p}
+const tropRecent=p=>!!p&&typeof p.arr==='number'&&p.arr<MATCHS_AVANT_REVENTE;
+function indemnite(p){if(tropRecent(p))return 0;const v=Math.round(valeur(p)*.4);return typeof p.cout==='number'?Math.min(v,Math.round(p.cout*.4)):v}
 function offresRecues(S,M){
   const moi=moiDe(S,M);const I=G(S,moi).inter;const out=[];
-  moi.liste.forEach(id=>{const p=moi.joueurs.find(x=>x.id===id);if(!p)return;
+  /* chaque joueur n'est proposé qu'une fois aux autres clubs par intersaison : réécouter ne retire pas de nouvelles offres */
+  I.tires=I.tires||[];I.recues=I.recues||[];
+  moi.liste.forEach(id=>{const p=moi.joueurs.find(x=>x.id===id);if(!p||tropRecent(p)||I.tires.includes(id))return;I.tires.push(id);
     clubsIA(S).forEach(T=>{
       if(R()>.4)return;
       const manque=postesManquants(T).includes(p.poste);const v=valeur(p)*(manque?1.1:.92)/(T.gourmandise||1.15);
@@ -1080,7 +1090,7 @@ function offresRecues(S,M){
       if(leur.length&&R()<.5){const q=pick(leur);out.push({de:T.id,club:T.court,veut:p.id,donne:q.id,po:Math.max(0,Math.round(v-valeur(q)))})}
       else out.push({de:T.id,club:T.court,veut:p.id,donne:null,po:Math.max(5,Math.round(v))});
     })});
-  I.recues=out.slice(0,6);
+  I.recues=I.recues.concat(out).slice(0,8);
   return I.recues;
 }
 function accepterOffre(S,k,M){
@@ -1093,7 +1103,7 @@ function accepterOffre(S,k,M){
   if(moi.joueurs.length-1+(q?1:0)<MIN_EFFECTIF)return'Votre effectif tomberait sous 5 joueurs.';
   if(I.faits>=MAX_ECHANGES)return'Vous avez déjà fait '+MAX_ECHANGES+' échanges cette intersaison.';
   moi.joueurs=moi.joueurs.filter(x=>x!==p);T.joueurs.push(p);p.titulaire=false;
-  if(q){T.joueurs=T.joueurs.filter(x=>x!==q);moi.joueurs.push(q);q.titulaire=false;q.entr='repos';q.sal=salaire(q);varierTetes(moi,q);T.liste=T.liste.filter(i=>i!==q.id)}
+  if(q){T.joueurs=T.joueurs.filter(x=>x!==q);arriver(q,valeur(q));moi.joueurs.push(q);q.titulaire=false;q.entr='repos';q.sal=salaire(q);varierTetes(moi,q);T.liste=T.liste.filter(i=>i!==q.id)}
   moi.or+=o.po;moi.liste=moi.liste.filter(i=>i!==p.id);I.recues=I.recues.filter(x=>x.veut!==p.id);I.faits++;
   I.journal.push(p.nom+' part à '+T.court+(q?' contre '+q.nom:'')+(o.po?(q?' et ':' contre ')+o.po+' po':''));
   return null;
