@@ -84,19 +84,18 @@ const svg=k=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 const listeP=a=>a.length?a.map(r=>RACES[r].pl.toLowerCase()).join(' et '):'personne';
 function ficheRace(r){const R0=RACES[r];return R0.pl+'. Atout : '+R0.atout+' Faiblesse : '+R0.faible+(R0.pouvoir?' '+R0.pouvoir:'')+' Spécialité : '+SPECIALITES[r].nom+', '+SPECIALITES[r].desc.charAt(0).toLowerCase()+SPECIALITES[r].desc.slice(1)+' Alliés : '+listeP(R0.allies)+'. Rivaux : '+listeP(R0.rivaux)+'.'}
 const aide=t=>' data-aide="'+esc(t)+'" tabindex="0"';
-const NOM_STAT={f:'Force',v:'Vitesse',t:'Passe',mn:'Mains',sp:'Spécialité',repos:'Repos'};const RANG_NOM=['','principale','secondaire','moins importante','qui ne sert pas à ce poste'];const RANG_MARQ=['','▲▲','▲','',''];
+const NOM_STAT={f:'Force',v:'Vitesse',t:'Adresse',sp:'Spécialité',repos:'Repos'};const RANG_NOM=['','principale','secondaire','moins importante','qui ne sert pas à ce poste'];const RANG_MARQ=['','▲▲','▲','',''];
 const AIDE={
   poste:"Valeur au poste : ce que le joueur apporte vraiment à son poste. Elle mélange ses notes selon leur importance pour ce poste : ▲▲ la note principale, ▲ la secondaire, et les notes grisées comptent peu ou pas du tout. Un coureur à 99 en vitesse a une excellente valeur même avec peu de force.",
-  FOR:'Force : cogner, encaisser les coups et protéger le porteur. Essentielle pour un cogneur et un trois-quarts.',
+  FOR:'Force : cogner, encaisser les coups et protéger le porteur. Essentielle pour un cogneur, un pilier et un trois-quarts.',
   VIT:'Vitesse : percer la défense, filer au but, rattraper les fuyards. Essentielle pour un coureur et un trois-quarts.',
-  PAS:'Passe : lancer le ballon et voir le jeu. Essentielle pour un passeur, inutile aux autres places.',
-  MAI:'Mains : recevoir le ballon et ne pas le lâcher. Elles font le buteur : précieuses pour un coureur, utiles à tous sauf au passeur.',
+  ADR:'Adresse : passes, réceptions et tirs. Essentielle pour un passeur, utile à un coureur.',
   Forme:"Forme : l'énergie du joueur. Elle baisse à chaque match et à l'entraînement, remonte au repos. Sous 40, il joue nettement moins bien et se blesse plus.",
   plafond:"La barre claire derrière la note est le plafond du joueur : il ne pourra pas monter au-delà, et plus il s'en approche, plus ses progrès ralentissent.",
   potentiel:"Potentiel : la marge de progression qui lui reste avant ses plafonds. 5 étoiles = beaucoup à gagner à l'entraînement.",
   repos:"Repos : pas de progrès, mais la forme remonte nettement. Idéal pour un joueur fatigué (forme sous 60) ou avant un gros match.",
   sp:'Entraînement de la spécialité de peuple (voir la jauge SPÉ). Fatigue comme les autres entraînements.',
-  f:"Musculation : la force progresse, mais le joueur se fatigue.",v:"Sprints : la vitesse progresse, mais le joueur se fatigue.",t:"Ateliers de lancer : la passe progresse, mais le joueur se fatigue.",mn:"Ateliers de réception : les mains progressent, mais le joueur se fatigue.",
+  f:"Musculation : la force progresse, mais le joueur se fatigue.",v:"Sprints : la vitesse progresse, mais le joueur se fatigue.",t:"Ateliers ballon : l'adresse progresse, mais le joueur se fatigue.",
   titulaire:"Touchez pour faire passer le joueur de titulaire à remplaçant. Sept titulaires commencent le match, chacun à son poste ; le banc entre, dans l'ordre, quand quelqu'un sort blessé ou expulsé.",
 };
 function aidePuce(k,p){
@@ -150,7 +149,7 @@ function puces(p,opt){
 function jaugesJoueur(p,vu,bruit){
   const ligne=(lab,k)=>{if(vu&&bruit){const a=clamp(vu[k]-bruit,10,99),b=clamp(vu[k]+bruit,10,99);const r=rangStat(p,k);return'<span class="r'+r+'"'+aide(AIDE[lab]+' Pour un '+p.poste.toLowerCase()+', c\'est la note '+RANG_NOM[r]+'. Note estimée par votre chineur : la vraie valeur est quelque part entre '+a+' et '+b+'.')+'>'+lab+(RANG_MARQ[r]?'<i>'+RANG_MARQ[r]+'</i>':'')+'</span>'+jauge(vu[k],'flou')+'<span>'+a+'–'+b+'</span>'}
     const v=vu?vu[k]:p[k];const r=rangStat(p,k);return'<span class="r'+r+'"'+aide(AIDE[lab]+' Pour un '+p.poste.toLowerCase()+', c\'est la note '+RANG_NOM[r]+'.'+(vu?'':' Plafond de ce joueur : '+p.cap[k]+'. '+AIDE.plafond))+'>'+lab+(RANG_MARQ[r]?'<i>'+RANG_MARQ[r]+'</i>':'')+'</span>'+jauge(v,'',vu?0:p.cap[k])+'<span>'+v+'</span>'};
-  return'<div class="jauges num">'+ligne('FOR','f')+ligne('VIT','v')+ligne('PAS','t')+ligne('MAI','mn')+'<span'+aide('Spécialité de peuple : '+SPECIALITES[p.race].nom+' ('+NIV_SPE(p.sp||0)+'). '+SPECIALITES[p.race].desc+' Elle se développe avec l\'entraînement SPÉ.')+'>SPÉ</span>'+jauge(p.sp||0,'spe',vu?0:(p.cap.sp||0))+'<span>'+(p.sp||0)+'</span><span'+aide(AIDE.Forme)+'>Forme</span>'+jauge(p.forme,'forme')+'<span>'+Math.round(p.forme)+'</span><span class="vp"'+aide(AIDE.poste)+'>Poste</span>'+jauge(notePoste(p,vu),'poste')+'<span class="vp">'+(vu&&bruit?'~':'')+notePoste(p,vu)+'</span></div>';
+  return'<div class="jauges num">'+ligne('FOR','f')+ligne('VIT','v')+ligne('ADR','t')+'<span'+aide('Spécialité de peuple : '+SPECIALITES[p.race].nom+' ('+NIV_SPE(p.sp||0)+'). '+SPECIALITES[p.race].desc+' Elle se développe avec l\'entraînement SPÉ.')+'>SPÉ</span>'+jauge(p.sp||0,'spe',vu?0:(p.cap.sp||0))+'<span>'+(p.sp||0)+'</span><span'+aide(AIDE.Forme)+'>Forme</span>'+jauge(p.forme,'forme')+'<span>'+Math.round(p.forme)+'</span><span class="vp"'+aide(AIDE.poste)+'>Poste</span>'+jauge(notePoste(p,vu),'poste')+'<span class="vp">'+(vu&&bruit?'~':'')+notePoste(p,vu)+'</span></div>';
 }
 /* LABO : la place que le joueur occupera sur le terrain, d'après la composition du moment */
 function pastillePlace(p,mode){if(mode!=='equipe'||!dispo(p))return'';return'';const pl=p.poste,hors=false;
@@ -198,12 +197,12 @@ function rapportHTML(adv){
 }
 function blocEtats(T){
   const{tit}=onzeDe(T);const actifs=etatsDe(T,tit);const ids=new Set(actifs.map(e=>e.id));const n=compterPostes(tit);
-  return'<div class="equilibre">'+POSTE_IDS.map(po=>'<div class="'+(n[po]||Math.max(...Object.values(n))>=5?'':'manque')+'"><b>'+n[po]+'</b><span>'+POSTES[po].pl+'</span></div>').join('')+'</div>'
+  return'<div class="equilibre">'+POSTE_IDS.map(po=>'<div class="'+(n[po]||po==='Pilier'||Math.max(...POSTES_BASE.map(x=>n[x]))>=5?'':'manque')+'"><b>'+n[po]+'</b><span>'+POSTES[po].pl+'</span></div>').join('')+'</div>'
     +'<div class="etats">'+(actifs.length?actifs.map(e=>'<span class="etat'+(e.mal?' mal':'')+'"'+aide(e.nom+' : '+e.effet+'. Condition : '+e.cond+'.')+'>'+e.nom+'</span>').join(''):'<span class="note" style="margin:0">Aucun état actif avec ces titulaires.</span>')+'</div>'
     +'<details class="regles"><summary>Tous les états d\'équipe et leurs conditions</summary><ul>'+ETATS.map(e=>'<li class="'+(ids.has(e.id)?'actif':'')+'"><b>'+e.nom+(ids.has(e.id)?' · actif':'')+'</b><span>'+e.cond+' : '+e.effet+'.</span></li>').join('')+'</ul></details>'
     +'<details class="regles"><summary>Peuples : atouts, faiblesses, alliés et rivaux</summary><ul>'+RACE_IDS.map(k=>'<li><b>'+RACES[k].pl+'</b><span>'+esc(ficheRace(k).replace(RACES[k].pl+'. ',''))+'</span></li>').join('')+'</ul></details>'
     +'<details class="regles"><summary>Conseils de composition</summary><ul>'
-    +'<li><b>La base</b><span>2 cogneurs, 2 trois-quarts, 2 coureurs, 1 passeur. Sans l\'un des quatre postes, vous prenez un malus de 5 à 10 %.</span></li>'
+    +'<li><b>La base</b><span>2 cogneurs, 2 trois-quarts, 2 coureurs, 1 passeur. Sans l\'un de ces quatre postes, vous prenez un malus de 5 à 10 %.</span></li><li><b>Le pilier</b><span>Facultatif. '+POSTES.Pilier.role.replace(/'/g,'’')+' Il prend en général la place d\'un cogneur ou d\'un trois-quarts.</span></li>'
     +'<li><b>Le pari du sang pur</b><span>7 titulaires du même peuple : +8 % partout. Simple et fort, mais vous héritez de toutes les faiblesses du peuple (des elfes purs se cassent vite, des nains purs n\'avancent pas).</span></li>'
     +'<li><b>Le jeu des alliances</b><span>Mélangez des alliés pour cumuler les petits bonus : un humain avec un nain et un elfe active la Vieille alliance et le Pacte de l\'Ouest. Un orque, un gobelin et un elfe noir activent la Horde et les Coups tordus.</span></li>'
     +'<li><b>Le joyeux bazar</b><span>4 peuples différents : +7 % en attaque. Pensez à glisser un humain pour calmer une éventuelle rivalité.</span></li>'
@@ -431,7 +430,7 @@ function vueEchanges(){
   const moi=moiT();const I=S.inter;
   let h='<section class="bloc"><h2>Bourse aux échanges <small>'+I.faits+' sur '+MAX_ECHANGES+' échanges</small></h2>';
   h+='<div class="panneau" style="margin-bottom:10px"><span class="t">1. Vos joueurs à l\'échange</span><p class="note" style="margin:0 0 8px">Cochez ceux que vous êtes prêt à céder. Eux seuls peuvent entrer dans une offre, et les autres clubs peuvent faire des offres dessus.</p><div class="cases">'
-    +moi.joueurs.map(p=>'<label><input type="checkbox" data-act="lister" data-id="'+p.id+'"'+(moi.liste.includes(p.id)?' checked':'')+(tropRecent(p)?' disabled':'')+'> '+esc(p.nom)+(tropRecent(p)?' <span class="note">(vient d\'arriver : pas de transfert avant '+MATCHS_AVANT_REVENTE+' matchs au club)</span>':'')+' <span style="color:var(--creme-sourde);font-size:13px">· '+p.poste.toLowerCase()+' · '+p.age+' ans · au poste '+notePoste(p)+' · FOR '+p.f+' VIT '+p.v+' PAS '+p.t+' MAI '+p.mn+'</span></label>').join('')+'</div>'
+    +moi.joueurs.map(p=>'<label><input type="checkbox" data-act="lister" data-id="'+p.id+'"'+(moi.liste.includes(p.id)?' checked':'')+(tropRecent(p)?' disabled':'')+'> '+esc(p.nom)+(tropRecent(p)?' <span class="note">(vient d\'arriver : pas de transfert avant '+MATCHS_AVANT_REVENTE+' matchs au club)</span>':'')+' <span style="color:var(--creme-sourde);font-size:13px">· '+p.poste.toLowerCase()+' · '+p.age+' ans · au poste '+notePoste(p)+' · FOR '+p.f+' VIT '+p.v+' ADR '+p.t+'</span></label>').join('')+'</div>'
     +'<button class="discret or" data-act="ecouter" style="margin-top:10px"'+(moi.liste.length?'':' disabled')+'>Écouter les offres des autres clubs</button>';
   if(I.recues.length)h+='<div class="cases" style="margin-top:10px">'+I.recues.map((o,k)=>{const p=moi.joueurs.find(x=>x.id===o.veut);const q=o.donne?S.teams[o.de].joueurs.find(x=>x.id===o.donne):null;if(!p)return'';
       return'<div class="offre"><div><b>'+esc(o.club)+'</b> veut <b>'+esc(p.nom)+'</b> contre '+(q?'<button class="lien" data-act="fiche" data-id="'+q.id+'">'+esc(q.nom)+'</button> ('+q.poste.toLowerCase()+')'+(o.po?' et '+o.po+' po':''):o.po+' po')+'.</div><div class="boutons"><button class="discret or" data-act="accepter-offre" data-v="'+k+'">Accepter</button><button class="discret" data-act="refuser-offre" data-v="'+k+'">Refuser</button></div></div>'}).join('')+'</div>';
@@ -501,7 +500,7 @@ function vueFiche(){
     +'<table><thead><tr><th></th><th>Matchs</th><th>Buts</th><th>Passes</th><th>Sortis</th><th>Cartons</th></tr></thead><tbody>'
     +'<tr><td>Saison</td><td>'+p.sm+'</td><td>'+p.sb+'</td><td>'+p.spd+'</td><td>'+p.sv+'</td><td>'+p.sj+'</td></tr>'
     +'<tr><td>Carrière</td><td>'+p.matchs+'</td><td>'+p.buts+'</td><td>'+p.pd+'</td><td>'+p.victimes+'</td><td>'+(p.cj+p.cr)+'</td></tr></tbody></table>'
-    +'<div class="savoir poste"><small>Au poste de '+p.poste.toLowerCase()+' · valeur '+(vu&&b?'~':'')+notePoste(p,vu)+'</small>'+hierarchie(p)+(mien&&p.blesse<=0?'<br><b>Conseil d\'entraînement :</b> '+texteConseil(p):'')+'</div>'+'<div class="notes4">'+note4('FORCE','f')+note4('VITESSE','v')+note4('PASSE','t')+note4('MAINS','mn')+'<div>FORME<b>'+Math.round(p.forme)+'</b></div></div><div class="savoir"><small>Spécialité · '+NIV_SPE(p.sp||0)+'</small>'+SPECIALITES[p.race].nom+' ('+(p.sp||0)+(mien?' / max '+(p.cap.sp||0):'')+') : '+SPECIALITES[p.race].desc+'</div>'
+    +'<div class="savoir poste"><small>Au poste de '+p.poste.toLowerCase()+' · valeur '+(vu&&b?'~':'')+notePoste(p,vu)+'</small>'+hierarchie(p)+(mien&&p.blesse<=0?'<br><b>Conseil d\'entraînement :</b> '+texteConseil(p):'')+'</div>'+'<div class="notes4">'+note4('FORCE','f')+note4('VITESSE','v')+note4('ADRESSE','t')+'<div>FORME<b>'+Math.round(p.forme)+'</b></div></div><div class="savoir"><small>Spécialité · '+NIV_SPE(p.sp||0)+'</small>'+SPECIALITES[p.race].nom+' ('+(p.sp||0)+(mien?' / max '+(p.cap.sp||0):'')+') : '+SPECIALITES[p.race].desc+'</div>'
     +'<div class="savoir cadre-txt"><small>Son cadre</small>'+texteCadre(p,vu&&b?vu:null)+'</div>'+profilCacheHTML(p)+(!T?'<div class="savoir"><small>Comparé à votre effectif</small>'+chezVous(p,vu)+'</div>':'')+(p.cicatrices?'<div class="savoir"><small>Le saviez-vous ?</small>'+pl(p.cicatrices,'cicatrice')+' de guerre, et une note abîmée à chaque fois.</div>':'')+'</div>';
   if(mien){
     h+='<label for="renom" style="display:block;margin-top:14px;font-weight:700;font-size:14px">Renommer le joueur</label><input type="text" id="renom" maxlength="28" value="'+esc(p.nom)+'">'
@@ -518,13 +517,13 @@ function vueClubAdv(){
     +'<p class="note" style="margin:4px 0 0">'+rang+(rang===1?'er':'e')+' · '+pl(T.g,'victoire')+', '+pl(T.n,'nul')+', '+pl(T.p,'défaite')+' · '+T.bp+' buts marqués, '+T.bc+' encaissés'+(T.rep?'<br>'+T.rep:'')+'</p>'
     +'<div class="etats" style="margin-top:10px">'+(et.length?et.map(e=>'<span class="etat'+(e.mal?' mal':'')+'"'+aide(e.nom+' : '+e.effet+'.')+'>'+e.nom+'</span>').join(''):'<span class="note" style="margin:0">Aucun état d\'équipe actif.</span>')+'</div><div style="margin-top:10px">';
   h+=T.joueurs.slice().sort((a,b)=>(setTit.has(b)-setTit.has(a))||puissance(b)-puissance(a)).map(p=>'<div class="ligne-joueur" style="--c:'+T.couleur+'"><img class="'+cad(p)+'" alt="" src="'+img(p.race,p.tete)+'"><div><button data-act="fiche" data-id="'+p.id+'">'+(p.leg?'✦ ':'')+esc(p.nom)+'</button><small>'+(p.leg?'Légende · '+POUVOIRS[p.pv].nom+' · ':'')+p.poste+' · '+RACES[p.race].nom+(p.trait!=='aucun'?' · '+TRAITS[p.trait].nom:'')+' · '+(p.blesse>0?'blessé':p.suspendu?'suspendu':setTit.has(p)?'titulaire probable':'banc')+(T.liste&&T.liste.includes(p.id)&&S.phase==='inter'?' · à l\'échange':'')+'</small></div>'
-    +'<div class="chiffres">'+p.f+' · '+p.v+' · '+p.t+(typeof p.mn==='number'?' · '+p.mn:'')+'<br>'+pl(p.sb,'but')+', '+p.sv+' sortis</div></div>').join('');
-  return h+'</div><p class="note">Les nombres sont la force, la vitesse, la passe et les mains.</p><div class="actions"><button class="discret" data-act="fermer">Fermer</button></div></div></div>';
+    +'<div class="chiffres">'+p.f+' · '+p.v+' · '+p.t+'<br>'+pl(p.sb,'but')+', '+p.sv+' sortis</div></div>').join('');
+  return h+'</div><p class="note">Les trois nombres sont la force, la vitesse et l\'adresse.</p><div class="actions"><button class="discret" data-act="fermer">Fermer</button></div></div></div>';
 }
 function vueOffre(){
   const moi=moiT();const o=trouver(offre.cible);if(!o){offre=null;return''}
   const p=o.p,T=o.T;const mes=moi.joueurs.filter(x=>moi.liste.includes(x.id));
-  let h='<div class="voile haut" data-act="voile"><div class="fiche" role="dialog" aria-label="Faire une offre"><h2>Offre pour '+esc(p.nom)+'</h2><p class="note">'+esc(T.court)+' · '+p.poste.toLowerCase()+' · '+p.age+' ans · au poste '+notePoste(p)+' · FOR '+p.f+' VIT '+p.v+' PAS '+p.t+' MAI '+p.mn+'</p>'+chezVous(p);
+  let h='<div class="voile haut" data-act="voile"><div class="fiche" role="dialog" aria-label="Faire une offre"><h2>Offre pour '+esc(p.nom)+'</h2><p class="note">'+esc(T.court)+' · '+p.poste.toLowerCase()+' · '+p.age+' ans · au poste '+notePoste(p)+' · FOR '+p.f+' VIT '+p.v+' ADR '+p.t+'</p>'+chezVous(p);
   h+='<span class="t" style="margin-top:12px">Vous donnez</span>'+(mes.length?'<div class="cases">'+mes.map(x=>'<label><input type="checkbox" data-act="offre-donne" data-id="'+x.id+'"'+(offre.donne.includes(x.id)?' checked':'')+'> '+esc(x.nom)+' <span style="color:var(--creme-sourde);font-size:13px">· '+x.poste.toLowerCase()+' · au poste '+notePoste(x)+' · '+x.age+' ans</span></label>').join('')+'</div>':'<p class="note">Aucun joueur sur votre liste d\'échange : l\'offre se fera en pièces d\'or seulement.</p>');
   h+='<span class="t" style="margin-top:12px">Et en pièces d\'or</span><div class="seg"><button data-act="offre-po" data-v="-5">−5</button><button disabled style="opacity:1">'+offre.po+' po</button><button data-act="offre-po" data-v="5">+5</button></div>';
   if(offre.rep)h+='<p style="margin-top:12px;font-size:15px"><b>'+esc(offre.rep.club||'')+' :</b> « '+esc(offre.rep.msg)+' »</p>';
@@ -613,7 +612,7 @@ function feuilleDeMatch(){
   const moi=moiT(),{tit}=onzeDe(moi),L=[];
   const it=(cl,txt,btn)=>L.push('<li class="'+cl+'"><span>'+txt+'</span>'+(btn||'')+'</li>');
   const bEq='<button class="discret" data-act="sous" data-v="vestiaire:equipe">Équipe</button>';
-  const cpF=compterPostes(tit);const manque=Math.max(...Object.values(cpF))>=5?[]:POSTE_IDS.filter(po=>!tit.some(p=>p.poste===po&&!p.temp));
+  const cpF=compterPostes(tit);const manque=Math.max(...POSTES_BASE.map(po=>cpF[po]))>=5?[]:POSTES_BASE.filter(po=>!tit.some(p=>p.poste===po&&!p.temp));
   if(besoinPret(S))it('alerte','Il vous manque '+pl(besoinPret(S),'joueur valide','joueurs valides')+' : des stagiaires très faibles (26 partout) compléteront. Empruntez un joueur pour ce match.','<button class="discret or" data-act="pret">Prêt d\'urgence</button>');
   manque.forEach(po=>it('alerte','Aucun <b>'+po.toLowerCase()+'</b> titulaire : '+(po==='Cogneur'?'−10 % en défense':po==='Trois-quarts'?'−5 % en attaque et en défense':'−8 % en attaque')+'.',bEq));
   const las=tit.filter(p=>!p.temp&&p.forme<50).sort((a,b)=>a.forme-b.forme);
@@ -745,7 +744,7 @@ function boutonTiroir(){return(fiche!==null||offre||tiroir||clubVu!==null)?'':'<
 function vueTiroir(){
   const moi=moiT();const L=moi.joueurs.slice().sort((a,b)=>POSTE_IDS.indexOf(a.poste)-POSTE_IDS.indexOf(b.poste)||notePoste(b)-notePoste(a));
   return'<div class="voile bas" data-act="voile"><div class="tiroir" role="dialog" aria-label="Mon équipe"><div class="tiroir-t"><b>Mon équipe</b><span>'+moi.joueurs.length+' / '+MAX_EFFECTIF+' joueurs · '+masseSalariale(moi)+' po de salaires par match</span><button class="discret" data-act="fermer">Fermer</button></div>'
-    +'<table class="mini-eq"><thead><tr><th></th><th>Joueur</th><th title="Valeur au poste">Val.</th><th>FOR</th><th>VIT</th><th>PAS</th><th>MAI</th><th>Âge</th></tr></thead><tbody>'
+    +'<table class="mini-eq"><thead><tr><th></th><th>Joueur</th><th title="Valeur au poste">Val.</th><th>FOR</th><th>VIT</th><th>ADR</th><th>Âge</th></tr></thead><tbody>'
     +L.map(p=>'<tr><td><span class="mini-img '+cad(p)+'"><img alt="" src="'+img(p.race,p.tete)+'"></span></td><td><button class="lien" data-act="fiche" data-id="'+p.id+'">'+esc(p.nom)+'</button><small>'+p.poste+(p.retraite?' · dernière saison':'')+(dispo(p)?'':' · indisponible')+'</small></td><td class="val">'+notePoste(p)+'</td>'
       +STATS.map(k=>'<td class="r'+rangStat(p,k)+'">'+p[k]+'</td>').join('')+'<td>'+p.age+'</td></tr>').join('')
     +'</tbody></table><p class="note" style="margin:6px 0 0">Val. = valeur au poste. En doré, la note principale de chaque poste.</p></div></div>';
@@ -814,13 +813,13 @@ function ligneJ(p,mode,rang,nb){
   }
   return'<div class="lj'+(out?' out':'')+(tit&&mode==='equipe'?' tit':'')+(p.leg?' leg':'')+'"><button class="lj-img '+cad(p)+'" data-act="fiche" data-id="'+p.id+'" style="--c:'+moi.couleur+'" aria-label="Fiche de '+esc(p.nom)+'"><img alt="" src="'+img(p.race,p.tete)+'"><span>'+POSTES[p.poste].court+'</span></button>'
     +'<div class="lj-c"><button class="nom" data-act="fiche" data-id="'+p.id+'">'+esc(p.nom)+'</button>'+pastillePlace(p,mode)+'<span class="age"'+aide(etapeAge(p.age||25)[1]+' : '+etapeAge(p.age||25)[2]+'.')+'>'+ageCourt(p)+'</span>'
-    +'<div class="lj-s">'+vp+st('FOR','f')+st('VIT','v')+st('PAS','t')+st('MAI','mn')+'<span'+aide('Spécialité '+SPECIALITES[p.race].nom+' : '+SPECIALITES[p.race].desc)+'>SPÉ <b>'+(p.sp||0)+'</b></span><span class="fo '+(p.forme>=65?'b':p.forme>=40?'m':'f')+'"'+aide(AIDE.Forme)+'>FORME <b>'+Math.round(p.forme)+'</b></span></div>'
+    +'<div class="lj-s">'+vp+st('FOR','f')+st('VIT','v')+st('ADR','t')+'<span'+aide('Spécialité '+SPECIALITES[p.race].nom+' : '+SPECIALITES[p.race].desc)+'>SPÉ <b>'+(p.sp||0)+'</b></span><span class="fo '+(p.forme>=65?'b':p.forme>=40?'m':'f')+'"'+aide(AIDE.Forme)+'>FORME <b>'+Math.round(p.forme)+'</b></span></div>'
     +'<div class="lj-f"'+aide(AIDE.Forme)+'><i class="'+(p.forme>=65?'b':p.forme>=40?'m':'f')+'" style="width:'+Math.round(p.forme)+'%"></i></div>'
     +'<div class="puces">'+pucesC(p)+pucesCarriere(p)+pucesCache(p)+'</div></div><div class="lj-d">'+d+'</div></div>';
 }
 function resumeEtats(T){
   const{tit}=onzeDe(T);const actifs=etatsDe(T,tit);const n=compterPostes(T.id===0?T.joueurs.filter(p=>dispo(p)&&p.titulaire):tit);
-  return'<div class="equilibre">'+POSTE_IDS.map(po=>'<div class="'+(n[po]||Math.max(...Object.values(n))>=5?'':'manque')+'"><b>'+n[po]+'</b><span>'+POSTES[po].pl+'</span></div>').join('')+'</div>'
+  return'<div class="equilibre">'+POSTE_IDS.map(po=>'<div class="'+(n[po]||po==='Pilier'||Math.max(...POSTES_BASE.map(x=>n[x]))>=5?'':'manque')+'"><b>'+n[po]+'</b><span>'+POSTES[po].pl+'</span></div>').join('')+'</div>'
     +'<div class="etats">'+(actifs.length?actifs.map(e=>'<span class="etat'+(e.mal?' mal':'')+'"'+aide(e.nom+' : '+e.effet+'. Condition : '+e.cond+'.')+'>'+e.nom+'</span>').join(''):'<span class="note" style="margin:0">Aucun bonus d\'équipe actif.</span>')+'</div>';
 }
 function ongletEquipe(){
@@ -842,7 +841,7 @@ function ongletEquipe(){
 function ongletEntr(){
   const moi=moiT();
   let h='<section class="bloc"><div class="panneau compact"><div class="ligne-boutons"><span class="t" style="margin:0">Tous :</span>'+Object.keys(ENTR).map(k=>'<button class="discret" data-act="entr-tous" data-v="'+k+'">'+(k==='repos'?'Repos':ENTR[k].court)+'</button>').join('')+'</div>'
-    +'<button class="discret or" data-act="repos-fatigues" style="margin-top:8px">Reposer les joueurs sous 55 de forme</button><p class="note" style="margin:6px 0 0"><b>Repos</b> : la forme remonte. <b>FOR, VIT, PAS, MAI, SPÉ</b> : la note progresse, mais le joueur se fatigue. Règle simple : sous 55 de forme, repos. Le choix est gardé d\'une semaine à l\'autre.</p></div>';
+    +'<button class="discret or" data-act="repos-fatigues" style="margin-top:8px">Reposer les joueurs sous 55 de forme</button><p class="note" style="margin:6px 0 0"><b>Repos</b> : la forme remonte. <b>FOR, VIT, ADR, SPÉ</b> : la note progresse, mais le joueur se fatigue. Règle simple : sous 55 de forme, repos. Le choix est gardé d\'une semaine à l\'autre.</p></div>';
   h+=moi.joueurs.slice().sort((a,b)=>POSTE_IDS.indexOf(a.poste)-POSTE_IDS.indexOf(b.poste)).map(p=>ligneJ(p,'entr')).join('');
   return h+'</section>';
 }
@@ -894,7 +893,7 @@ function vueGuide(){
       +'<li><b>Les coups</b><span>Plus la consigne est brutale et vos cogneurs forts, plus l\'adversaire perd de joueurs. Un blessé ou un expulsé n\'est remplacé que s\'il reste un remplaçant : sinon on joue à 4.</span></li>'
       +'<li><b>Les coups du sort</b><span>Penalty (pot-de-vin), but en douce (fourbes, gobelins), arme secrète gobeline, assassinat elfe noir, esquive elfe, nain increvable.</span></li></ol>'
       +'<h4>D\'où viennent l\'attaque et la défense ?</h4><ul>'
-      +'<li><b>Les joueurs</b><span>Coureurs : attaque (vitesse, puis mains). Passeurs : attaque (passe surtout). Cogneurs : défense (force surtout). Trois-quarts : un peu des deux (force et vitesse). Chaque note est multipliée par la forme : un joueur à 40 de forme perd 12 %.</span></li>'
+      +'<li><b>Les joueurs</b><span>Coureurs : attaque (vitesse surtout). Passeurs : attaque (adresse surtout). Cogneurs : défense (force surtout). Trois-quarts : un peu des deux (force et vitesse). Pilier : défense, et il aide ses coureurs. Chaque note est multipliée par la forme : un joueur à 40 de forme perd 12 %.</span></li>'
       +'<li><b>Les bonus qui multiplient</b><span>États d\'équipe (de −10 % à +8 %), plan de jeu (jusqu\'à +10 %), contrer le plan adverse (+7 %), jouer à domicile (+5 %), consigne prudente (−6 % en attaque, +7 % en défense), suivre le conseil du stratège (+1 à +6 %), peuples (nains en défense, orques et humains partout).</span></li>'
       +'<li><b>Le marquage</b><span>Le joueur marqué perd 12 à 28 % d\'efficacité selon votre stratège ; votre attaque perd 3 %.</span></li></ul>'
       +'<p class="note">Le bouton « Comprendre et améliorer mes chances », dans Vestiaire › Match, rejoue votre prochain match des centaines de fois et montre l\'effet de chaque réglage.</p>',guide==='calcul')
@@ -973,7 +972,7 @@ const TUTO=[
   {ch:'Clé n° 2 : les ordres',vue:'vestiaire',sous:['vestiaire','match'],cible:'.choix .seg',titre:'La consigne',texte:"<b>Prudent</b> : moins de blessés et de cartons chez vous, mais −6 % en attaque.<br><b>Normal</b> : l'équilibre.<br><b>Brutal</b> : vous cognez bien plus et l'adversaire perd des joueurs… mais l'arbitre sort ses cartons.<br>Brutal convient aux équipes de cogneurs, prudent aux équipes fragiles (elfes)."},
   {ch:'Clé n° 2 : les ordres',vue:'vestiaire',sous:['vestiaire','match'],cible:'.seg.tactiques',titre:'Le plan de jeu',texte:"Comme pierre-feuille-ciseaux : <b>chaque plan en bat un autre</b>. Si le vôtre contre celui de l'adversaire : <b>+7 %</b> en attaque et en défense.<br>Certains plans demandent des postes : le Jeu au sol veut 2 coureurs, le Jeu aérien un passeur. Sans stratège, « Équilibré » ne risque rien."},
   {ch:'Clé n° 1 : l\'équipe',vue:'vestiaire',sous:['vestiaire','equipe'],cible:'.panneau.compact',titre:'Vos sept titulaires',texte:"Sept joueurs jouent. Le repère : <b>2 cogneurs, 2 trois-quarts, 2 coureurs, 1 passeur</b>. Sans l'un des quatre postes : −5 à −10 %. Mais vous êtes libre : à partir de 5 titulaires du même poste, l'équipe prend un <b>style</b> à elle, avec un point fort et un point faible.<br>Les pastilles <b>dorées</b> sont vos bonus d'équipe (même peuple, alliances…), les <b>rouges</b> vos malus (rivalités). « Composition auto » fait un choix sûr."},
-  {ch:'Clé n° 1 : l\'équipe',vue:'vestiaire',sous:['vestiaire','equipe'],cible:'.lj',titre:'Lire un joueur',texte:"Chaque poste a sa note clé :<ul><li><b>Cogneur</b> : la force, pour la défense et les coups ;</li><li><b>Trois-quarts</b> : la force et la vitesse à parts égales, il dépanne partout ;</li><li><b>Coureur</b> : la vitesse puis les mains, pour marquer ;</li><li><b>Passeur</b> : la passe, pour lancer l'attaque.</li></ul>Touchez le portrait pour la carte complète. Touchez une pastille pour son explication."},
+  {ch:'Clé n° 1 : l\'équipe',vue:'vestiaire',sous:['vestiaire','equipe'],cible:'.lj',titre:'Lire un joueur',texte:"Chaque poste a sa note clé :<ul><li><b>Cogneur</b> : la force, pour la défense et les coups ;</li><li><b>Trois-quarts</b> : la force et la vitesse à parts égales, il dépanne partout ;</li><li><b>Coureur</b> : la vitesse, pour marquer ;</li><li><b>Passeur</b> : l'adresse, pour l'attaque et les passes ;</li><li><b>Pilier</b> : la force. Facultatif : il protège vos passeurs et aide vos coureurs.</li></ul>Touchez le portrait pour la carte complète. Touchez une pastille pour son explication."},
   {ch:'Clé n° 1 : l\'équipe',vue:'vestiaire',sous:['vestiaire','entr'],cible:'.entr-mini',titre:'La forme, le piège n° 1',texte:"La forme <b>multiplie tout</b> : un joueur à 40 de forme perd 12 % de ses notes et se blesse plus. Chaque match fatigue. Chaque semaine, choisissez pour chacun : <b>repos</b> (il récupère) ou une <b>note à travailler</b> (il progresse mais se fatigue). Alternez ! Le bouton marqué <b>★</b> est la note la plus utile à travailler pour son poste : ▲▲ signale la note principale, ▲ la secondaire, la note grisée compte peu."},
   {ch:'Jouer',vue:'vestiaire',sous:['vestiaire','match'],cible:'.barre-jouer',titre:'Lancer la journée',texte:"Quand tout est prêt, lancez la journée. Le match est simulé en 8 temps forts : le camp le plus fort a le ballon plus souvent, puis son attaque affronte la défense adverse, avec une part de chance. Vous arrivez ensuite dans la gazette."},
   {ch:'Après le match',vue:'vestiaire',sous:['vestiaire','match'],cible:'nav.onglets button[data-v="gazette"]',titre:'La gazette',texte:"« L'Écho du Gourdin » raconte chaque journée. Il se <b>feuillette</b> : touchez une rubrique en haut, utilisez les flèches, ou <b>glissez le doigt</b> pour tourner les pages. La page « L'analyse » explique <b>pourquoi</b> vous avez gagné ou perdu : lisez-la, c'est là qu'on apprend."},
@@ -1074,7 +1073,7 @@ function action(b,ev){
     case'acheter':{const p=S.marche.find(p=>p.id===id);if(!p)break;const prix=prixMarche(S,p);
       demander('Recruter '+p.nom+' ?',p.poste+' '+RACES[p.race].nom.toLowerCase()+'. Prix : <b>'+(prix?prix+' po':'gratuit')+'</b>, puis '+(p.gratuit?p.sal:salaire(p))+' po par match. '+(p.sexe==='f'?'Elle arrive':'Il arrive')+' tout de suite et s\'entraîne avant le prochain match.',(prix?'Recruter pour '+prix+' po':'Signer gratuitement'),()=>{
         if((!prix||moi.or>=prix)&&moi.joueurs.length<MAX_EFFECTIF&&(p.gratuit||!huissiers(S))){moi.or-=prix;delete p.vu;delete p.coeur;p.titulaire=false;if(!p.gratuit)p.sal=salaire(p);S.marche=S.marche.filter(x=>x!==p);arriver(p,prix);moi.joueurs.push(p);varierTetes(moi,p);Son.jouer('piece');
-          informer('Bienvenue au club','Ses vraies notes : force '+p.f+', vitesse '+p.v+', passe '+p.t+', mains '+p.mn+'. Potentiel '+etoiles(etoilesPot(marge(p)))+'.','piece')}});break}
+          informer('Bienvenue au club','Ses vraies notes : force '+p.f+', vitesse '+p.v+', adresse '+p.t+'. Potentiel '+etoiles(etoilesPot(marge(p)))+'.','piece')}});break}
     case'filtre':filtre=v;break;
     case'sous':{const[a,b2]=v.split(':');sous[a]=b2;window.scrollTo(0,0);break}
     case'guide':guide=v||true;Son.jouer('carte');break;

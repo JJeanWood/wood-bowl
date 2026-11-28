@@ -127,7 +127,7 @@ function analyse(S,res,x){
   const def=rd>1.15?choisir(S,'def-',["Derrière, ça a craqué : ils ont eu {o}.","Leur attaque a débordé votre défense, {o} à la clé.","Votre défense a pris l'eau : {o}."]):rd<.87?choisir(S,'def+',["Votre défense a tenu bon : {o} seulement.","Vos cogneurs ont fermé la boutique ({o}).","Rien ne passait derrière : {o}."]):choisir(S,'def=',["Leur attaque et votre défense se sont rendu coup pour coup ({o}).","Défense correcte, sans plus : {o}."]);
   L.push(remplir(def,{o:pl(so.occ,'occasion')}));
   // postes
-  const po=st.postes;const compo=pl(po.Cogneur,'cogneur')+', '+pl(po['Trois-quarts']||0,'trois-quarts','trois-quarts')+', '+pl(po.Coureur,'coureur')+', '+pl(po.Passeur,'passeur');
+  const po=st.postes;const compo=(po.Pilier?pl(po.Pilier,'pilier')+', ':'')+pl(po.Cogneur,'cogneur')+', '+pl(po['Trois-quarts']||0,'trois-quarts','trois-quarts')+', '+pl(po.Coureur,'coureur')+', '+pl(po.Passeur,'passeur');
   if(res.etatsMal[i].length)L.push('Composition déséquilibrée ('+compo+') : '+res.etatsMal[i].map(n=>'« '+n+' »').join(' et ')+' vous a coûté cher.');
   else if(res.etats[i].length)L.push(choisir(S,'etats',["Vos titulaires ({c}) ont profité de : {e}.","Avec {c}, vous aviez {e} en votre faveur.","Composition : {c}. États actifs : {e}."]).replace('{c}',compo).replace('{e}',res.etats[i].join(', ')));
   else L.push('Composition : '+compo+', sans état d\'équipe particulier.');
