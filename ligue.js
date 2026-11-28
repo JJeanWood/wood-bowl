@@ -111,7 +111,7 @@ function depouiller(S,lot,mises){
     const remise=kk(g.T,'chin','remise');if(remise&&prix>1)prix=Math.max(1,Math.round(prix*(1-remise/100)));
     const T=g.T;T.or-=prix;G(S,T).dep=(G(S,T).dep||0)+prix;
     delete p.vuPar;delete p.plancher;delete p.vu;delete p.coeur;p.titulaire=false;p.entr='repos';if(!p.gratuit)p.sal=salaire(p);
-    T.joueurs.push(p);varierTetes(T,p);
+    arriver(p,prix);T.joueurs.push(p);varierTetes(T,p);
     restants.splice(restants.indexOf(p),1);
     ventes.push({id:p.id,nom:p.nom,race:p.race,poste:p.poste,tete:p.tete,club:T.id,clubNom:T.court,prix,mise:g.montant,nb:ordre.length,second:second?{club:second.T.id,clubNom:second.T.court}:null});
   }
@@ -131,7 +131,7 @@ function depouillerDraft(S,mises){
     let garde=0;
     while((T.joueurs.length<EFFECTIF_MIN_DRAFT||postesManquants(T).length)&&T.joueurs.length<MAX_EFFECTIF&&garde++<8){
       const y=jeuneDuPays(S,T.peuple);const manque=postesManquants(T);if(manque.length)y.poste=manque[0];
-      delete y.gratuit;y.titulaire=false;T.joueurs.push(y);varierTetes(T,y);r.jeunes.push({id:y.id,nom:y.nom,club:T.id});
+      delete y.gratuit;y.titulaire=false;arriver(y,0);T.joueurs.push(y);varierTetes(T,y);r.jeunes.push({id:y.id,nom:y.nom,club:T.id});
     }
   });
   demarrerSaison(S);r.fin=true;return r;
@@ -169,7 +169,7 @@ function depouillerMercato(S,mises){
   humains(S).forEach(T=>{
     if(T.joueurs.filter(p=>!p.mort).length<SEUIL_JEUNE){
       const y=jeuneDuPays(S,T.peuple);const manque=postesManquants(T);if(manque.length)y.poste=manque[0];
-      delete y.gratuit;y.titulaire=false;y.entr=conseilEntr(y);T.joueurs.push(y);varierTetes(T,y);r.jeunes.push({id:y.id,nom:y.nom,club:T.id});
+      delete y.gratuit;y.titulaire=false;y.entr=conseilEntr(y);arriver(y,0);T.joueurs.push(y);varierTetes(T,y);r.jeunes.push({id:y.id,nom:y.nom,club:T.id});
     }
   });
   S.marche=[];
@@ -234,13 +234,13 @@ function appliquerAction(S,T,a){
     case'evenement':{if(!g.evt)return ko('Rien à décider pour l\'instant.');const m=resoudreEvenement(S,!!a.oui,T);return ok(m)}
     case'soigner':{const p=T.joueurs.find(x=>x.id===a.id);if(!p||!(p.blesse>0))return ko('Ce joueur n\'est pas blessé.');if(T.or<COUT_SOIN)return ko('Il vous faut '+COUT_SOIN+' po.');T.or-=COUT_SOIN;p.blesse--;return ok()}
     case'renvoyer':{const p=T.joueurs.find(x=>x.id===a.id);if(!p||p.pret)return ko('Joueur introuvable.');if(T.joueurs.length<=MIN_EFFECTIF)return ko('Il vous faut au moins '+MIN_EFFECTIF+' joueurs.');
-      const po=Math.round(valeur(p)*.4);T.or+=po;T.joueurs=T.joueurs.filter(x=>x!==p);T.liste=(T.liste||[]).filter(i=>i!==p.id);return ok(p.nom+' quitte le club (+'+po+' po).')}
+      const po=indemnite(p);T.or+=po;T.joueurs=T.joueurs.filter(x=>x!==p);T.liste=(T.liste||[]).filter(i=>i!==p.id);return ok(p.nom+' quitte le club (+'+po+' po).')}
     case'pret':{const e=emprunterJoueur(S,a.id,T);return e?ko(e):ok()}
     case'emprunt':{if(T.pret)return ko('Vous remboursez déjà un prêt.');return emprunter(S,T)?ok():ko('Le banquier refuse.')}
     case'renommer':{const p=T.joueurs.find(x=>x.id===a.id);const n=String(a.nom||'').replace(/[\u0000-\u001f<>]/g,'').trim().slice(0,28);if(!p||!n||p.pret)return ko('Nom invalide.');if(S._sexe){delete S._sexe[p.nom];S._sexe[n]=p.sexe||'m'}p.nom=n;return ok()}
     case'funerailles':{const d=(g.deuils||[])[a.i];if(!d||d.fun)return ko('Hommage déjà rendu.');if(T.or<10)return ko('Il vous faut 10 po.');T.or-=10;T.pop=clamp(T.pop+3,5,100);d.vu=true;d.fun=true;return ok()}
     case'arrivee':{if(S.phase!=='inter'||!g.inter)return ko('Ce n\'est pas l\'intersaison.');const m=reponseArrivee(S,a.i,!!a.oui,T);return ok(m)}
-    case'lister':{if(S.phase!=='inter'||!g.inter)return ko('Ce n\'est pas l\'intersaison.');if(!T.joueurs.some(p=>p.id===a.id))return ko('Joueur introuvable.');
+    case'lister':{if(S.phase!=='inter'||!g.inter)return ko('Ce n\'est pas l\'intersaison.');if(!T.joueurs.some(p=>p.id===a.id))return ko('Joueur introuvable.');if(tropRecent(T.joueurs.find(p=>p.id===a.id)))return ko('Il vient d\'arriver : pas de transfert avant '+MATCHS_AVANT_REVENTE+' matchs au club.');
       const i=T.liste.indexOf(a.id);if(i>=0)T.liste.splice(i,1);else T.liste.push(a.id);g.inter.recues=g.inter.recues.filter(o=>o.veut!==a.id);return ok()}
     case'offres':{if(S.phase!=='inter'||!g.inter)return ko('Ce n\'est pas l\'intersaison.');offresRecues(S,T);return ok()}
     case'offre':{if(S.phase!=='inter'||!g.inter)return ko('Ce n\'est pas l\'intersaison.');const e=accepterOffre(S,a.i,T);return e?ko(e):ok()}
