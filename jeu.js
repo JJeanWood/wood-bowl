@@ -97,7 +97,7 @@ const AIDE={
   repos:"Repos : pas de progrès, mais la forme remonte nettement. Idéal pour un joueur fatigué (forme sous 60) ou avant un gros match.",
   sp:'Entraînement de la spécialité de peuple (voir la jauge SPÉ). Fatigue comme les autres entraînements.',
   f:"Musculation : la force progresse, mais le joueur se fatigue.",v:"Sprints : la vitesse progresse, mais le joueur se fatigue.",t:"Ateliers de lancer : la passe progresse, mais le joueur se fatigue.",mn:"Ateliers de réception : les mains progressent, mais le joueur se fatigue.",
-  titulaire:"Touchez pour faire passer le joueur de titulaire à remplaçant. Sept titulaires commencent le match, et l'entraîneur les place au mieux sur les 7 places du terrain ; le banc entre, dans l'ordre, quand quelqu'un sort blessé ou expulsé.",
+  titulaire:"Touchez pour faire passer le joueur de titulaire à remplaçant. Sept titulaires commencent le match, chacun à son poste ; le banc entre, dans l'ordre, quand quelqu'un sort blessé ou expulsé.",
 };
 function aidePuce(k,p){
   if(k==='blesse')return'Blessé : il manquera encore '+pl(p.blesse,'match')+' (le chiffre baisse de 1 à chaque journée). Il ne joue pas et ne s\'entraîne pas. Un guérisseur (10 po, dans sa fiche) peut le faire revenir un match plus tôt.';
@@ -153,8 +153,10 @@ function jaugesJoueur(p,vu,bruit){
   return'<div class="jauges num">'+ligne('FOR','f')+ligne('VIT','v')+ligne('PAS','t')+ligne('MAI','mn')+'<span'+aide('Spécialité de peuple : '+SPECIALITES[p.race].nom+' ('+NIV_SPE(p.sp||0)+'). '+SPECIALITES[p.race].desc+' Elle se développe avec l\'entraînement SPÉ.')+'>SPÉ</span>'+jauge(p.sp||0,'spe',vu?0:(p.cap.sp||0))+'<span>'+(p.sp||0)+'</span><span'+aide(AIDE.Forme)+'>Forme</span>'+jauge(p.forme,'forme')+'<span>'+Math.round(p.forme)+'</span><span class="vp"'+aide(AIDE.poste)+'>Poste</span>'+jauge(notePoste(p,vu),'poste')+'<span class="vp">'+(vu&&bruit?'~':'')+notePoste(p,vu)+'</span></div>';
 }
 /* LABO : la place que le joueur occupera sur le terrain, d'après la composition du moment */
-function pastillePlace(p,mode){if(mode!=='equipe'||!dispo(p))return'';const pl=placesPrevues(moiT())[p.id];if(!pl||pl===p.poste)return'';const hors=true;
+function pastillePlace(p,mode){if(mode!=='equipe'||!dispo(p))return'';return'';const pl=p.poste,hors=false;
   return'<span class="place'+(hors?' hors':'')+'"'+aide(hors?'Il jouera à une place de '+pl.toLowerCase()+', pas à son poste de '+p.poste.toLowerCase()+' : il y vaut '+notePoste(p,null,pl)+' (contre '+notePoste(p)+' à son poste). Aucune pénalité : seules ses notes comptent. L\'entraîneur répartit les 7 titulaires pour que l\'équipe soit la plus forte possible.':'Il jouera à son poste : une place de '+pl.toLowerCase()+'.')+'>'+(hors?'joue ':'')+POSTES[pl].court+(hors?' · '+notePoste(p,null,pl):'')+'</span>'}
+/* LABO : les styles de poste, expliqués dans les conseils de composition */
+const LI_STYLES='<li><b>Les styles de poste</b><span>À partir de 5 titulaires du même poste, l\'équipe joue à sa façon et le malus des postes absents disparaît. '+ETATS.filter(e=>e.style).map(e=>'<b>'+e.nom+'</b> ('+e.cond.replace(' titulaires','')+') : '+e.effet+'.').join(' ')+'</span></li>';
 function hierarchie(p){return ORDRE_POSTE[p.poste].map(k=>{const r=rangStat(p,k);return NOM_STAT[k]+(r===1?' ▲▲ (principale)':r===2?' ▲ (secondaire)':r===3?' (compte peu)':' (ne sert pas)')}).join(' · ')}
 function texteConseil(p){const k=conseilEntr(p);if(k==='repos')return'toutes ses notes sont au plafond : du repos lui suffit.';if(k==='sp')return'ses notes utiles sont presque au plafond : travaillez sa spécialité.';const r=rangStat(p,k);return'travaillez la '+NOM_STAT[k].toLowerCase()+' (note '+RANG_NOM[r]+', encore '+(p.cap[k]-p[k])+' points à gagner).'}
 const tamponDe=p=>p.blesse>0?'Blessé':p.suspendu?'Suspendu':'';
@@ -196,17 +198,17 @@ function rapportHTML(adv){
 }
 function blocEtats(T){
   const{tit}=onzeDe(T);const actifs=etatsDe(T,tit);const ids=new Set(actifs.map(e=>e.id));const n=compterPostes(tit);
-  return'<div class="equilibre">'+POSTE_IDS.map(po=>'<div class="'+(n[po]?'':'manque')+'"><b>'+n[po]+'</b><span>'+POSTES[po].pl+'</span></div>').join('')+'</div>'
+  return'<div class="equilibre">'+POSTE_IDS.map(po=>'<div class="'+(n[po]||Math.max(...Object.values(n))>=5?'':'manque')+'"><b>'+n[po]+'</b><span>'+POSTES[po].pl+'</span></div>').join('')+'</div>'
     +'<div class="etats">'+(actifs.length?actifs.map(e=>'<span class="etat'+(e.mal?' mal':'')+'"'+aide(e.nom+' : '+e.effet+'. Condition : '+e.cond+'.')+'>'+e.nom+'</span>').join(''):'<span class="note" style="margin:0">Aucun état actif avec ces titulaires.</span>')+'</div>'
     +'<details class="regles"><summary>Tous les états d\'équipe et leurs conditions</summary><ul>'+ETATS.map(e=>'<li class="'+(ids.has(e.id)?'actif':'')+'"><b>'+e.nom+(ids.has(e.id)?' · actif':'')+'</b><span>'+e.cond+' : '+e.effet+'.</span></li>').join('')+'</ul></details>'
     +'<details class="regles"><summary>Peuples : atouts, faiblesses, alliés et rivaux</summary><ul>'+RACE_IDS.map(k=>'<li><b>'+RACES[k].pl+'</b><span>'+esc(ficheRace(k).replace(RACES[k].pl+'. ',''))+'</span></li>').join('')+'</ul></details>'
     +'<details class="regles"><summary>Conseils de composition</summary><ul>'
-    +'<li><b>La base</b><span>2 cogneurs, 2 coureurs, 1 passeur. Sans l\'un des trois postes, vous prenez un malus de 8 à 10 %.</span></li>'
+    +'<li><b>La base</b><span>2 cogneurs, 2 trois-quarts, 2 coureurs, 1 passeur. Sans l\'un des quatre postes, vous prenez un malus de 5 à 10 %.</span></li>'
     +'<li><b>Le pari du sang pur</b><span>7 titulaires du même peuple : +8 % partout. Simple et fort, mais vous héritez de toutes les faiblesses du peuple (des elfes purs se cassent vite, des nains purs n\'avancent pas).</span></li>'
     +'<li><b>Le jeu des alliances</b><span>Mélangez des alliés pour cumuler les petits bonus : un humain avec un nain et un elfe active la Vieille alliance et le Pacte de l\'Ouest. Un orque, un gobelin et un elfe noir activent la Horde et les Coups tordus.</span></li>'
     +'<li><b>Le joyeux bazar</b><span>4 peuples différents : +7 % en attaque. Pensez à glisser un humain pour calmer une éventuelle rivalité.</span></li>'
     +'<li><b>Les rivalités</b><span>Elfe et elfe noir, nain et orque, nain et gobelin se gênent sur le terrain. Évitez-les, ou alignez un humain médiateur.</span></li>'
-    +'<li><b>Les formations</b><span>3 cogneurs (Mur de brutes) pour un plan Mur défensif ; 3 coureurs (Jambes de feu) pour le Jeu au sol ; 2 passeurs (Jeu léché) pour le Jeu aérien ; 3 trois-quarts (Ligne de béliers) pour un peu de tout. Attention : le terrain n\'a qu\'une place de passeur et deux de chaque autre poste, le joueur en trop jouera donc à une place qui n\'est pas la sienne.</span></li></ul></details>'
+    +'<li><b>Les formations</b><span>3 cogneurs (Mur de brutes) pour un plan Mur défensif ; 3 coureurs (Jambes de feu) pour le Jeu au sol ; 2 passeurs (Jeu léché) pour le Jeu aérien ; 3 trois-quarts (Ligne de béliers) pour un peu de tout.</span></li>'+LI_STYLES+'</ul></details>'
     +'<details class="regles"><summary>Le rôle de chaque poste</summary><ul>'+POSTE_IDS.map(po=>'<li><b>'+po+'</b><span>'+POSTES[po].role+'</span></li>').join('')+'</ul></details>';
 }
 function blocInter(){
@@ -416,7 +418,7 @@ function vueMarche(){
   if(S.phase==='inter')h+=vueEchanges();
   const manque=postesManquants(moi);const n=niv(moi,'chin');
   h+='<section class="bloc"><h2>Agents libres <small>renouvelés à chaque journée</small></h2>';
-  h+='<div class="panneau" style="margin-bottom:10px"><p style="margin:0;font-size:14.5px">'+(manque.length?'Il vous manque : <b>'+manque.map(x=>x.toLowerCase()).join(', ')+'</b> (repère : 2 cogneurs, 2 coureurs, 1 passeur).':'Votre effectif couvre tous les postes.')+'</p>'
+  h+='<div class="panneau" style="margin-bottom:10px"><p style="margin:0;font-size:14.5px">'+(manque.length?'Il vous manque : <b>'+manque.map(x=>x.toLowerCase()).join(', ')+'</b> (repère : 2 cogneurs, 2 trois-quarts, 2 coureurs, 1 passeur).':'Votre effectif couvre tous les postes.')+'</p>'
     +'<p class="note">'+(n>=0?esc(moi.staff.chin.nom)+' ('+NIV[n].toLowerCase()+') vous propose '+K.marche[n+1]+' joueurs, notes estimées à ±'+K.bruit[n+1]+'.':'Sans chineur, vous voyez peu de joueurs et leurs notes sont très approximatives (±'+K.bruit[0]+'). Embauchez-en un dans l\'onglet Club.')+'</p></div>';
   h+='<div class="filtres"><label>Poste <select data-act="filtreSel" data-v="poste">'+[['tous','Tous les postes']].concat(POSTE_IDS.map(x=>[x,POSTES[x].pl])).map(([k,l])=>'<option value="'+k+'"'+(filtre===k?' selected':'')+'>'+l+'</option>').join('')+'</select></label>'
     +'<label>Peuple <select data-act="filtreSel" data-v="race">'+[['tous','Tous les peuples']].concat(RACE_IDS.map(r=>[r,RACES[r].pl])).map(([k,l])=>'<option value="'+k+'"'+(filtreR===k?' selected':'')+'>'+l+'</option>').join('')+'</select></label></div>';
@@ -611,7 +613,7 @@ function feuilleDeMatch(){
   const moi=moiT(),{tit}=onzeDe(moi),L=[];
   const it=(cl,txt,btn)=>L.push('<li class="'+cl+'"><span>'+txt+'</span>'+(btn||'')+'</li>');
   const bEq='<button class="discret" data-act="sous" data-v="vestiaire:equipe">Équipe</button>';
-  const manque=POSTE_IDS.filter(po=>!tit.some(p=>p.poste===po&&!p.temp));
+  const cpF=compterPostes(tit);const manque=Math.max(...Object.values(cpF))>=5?[]:POSTE_IDS.filter(po=>!tit.some(p=>p.poste===po&&!p.temp));
   if(besoinPret(S))it('alerte','Il vous manque '+pl(besoinPret(S),'joueur valide','joueurs valides')+' : des stagiaires très faibles (26 partout) compléteront. Empruntez un joueur pour ce match.','<button class="discret or" data-act="pret">Prêt d\'urgence</button>');
   manque.forEach(po=>it('alerte','Aucun <b>'+po.toLowerCase()+'</b> titulaire : '+(po==='Cogneur'?'−10 % en défense':po==='Trois-quarts'?'−5 % en attaque et en défense':'−8 % en attaque')+'.',bEq));
   const las=tit.filter(p=>!p.temp&&p.forme<50).sort((a,b)=>a.forme-b.forme);
@@ -818,7 +820,7 @@ function ligneJ(p,mode,rang,nb){
 }
 function resumeEtats(T){
   const{tit}=onzeDe(T);const actifs=etatsDe(T,tit);const n=compterPostes(T.id===0?T.joueurs.filter(p=>dispo(p)&&p.titulaire):tit);
-  return'<div class="equilibre">'+POSTE_IDS.map(po=>'<div class="'+(n[po]?'':'manque')+'"><b>'+n[po]+'</b><span>'+POSTES[po].pl+'</span></div>').join('')+'</div>'
+  return'<div class="equilibre">'+POSTE_IDS.map(po=>'<div class="'+(n[po]||Math.max(...Object.values(n))>=5?'':'manque')+'"><b>'+n[po]+'</b><span>'+POSTES[po].pl+'</span></div>').join('')+'</div>'
     +'<div class="etats">'+(actifs.length?actifs.map(e=>'<span class="etat'+(e.mal?' mal':'')+'"'+aide(e.nom+' : '+e.effet+'. Condition : '+e.cond+'.')+'>'+e.nom+'</span>').join(''):'<span class="note" style="margin:0">Aucun bonus d\'équipe actif.</span>')+'</div>';
 }
 function ongletEquipe(){
@@ -892,12 +894,12 @@ function vueGuide(){
       +'<li><b>Les coups</b><span>Plus la consigne est brutale et vos cogneurs forts, plus l\'adversaire perd de joueurs. Un blessé ou un expulsé n\'est remplacé que s\'il reste un remplaçant : sinon on joue à 4.</span></li>'
       +'<li><b>Les coups du sort</b><span>Penalty (pot-de-vin), but en douce (fourbes, gobelins), arme secrète gobeline, assassinat elfe noir, esquive elfe, nain increvable.</span></li></ol>'
       +'<h4>D\'où viennent l\'attaque et la défense ?</h4><ul>'
-      +'<li><b>Les joueurs</b><span>Sept places sur le terrain : 1 passeur, 2 coureurs, 2 trois-quarts, 2 cogneurs. Coureurs : attaque (vitesse, puis mains). Passeur : attaque (passe surtout). Cogneurs : défense (force surtout). Trois-quarts : un peu des deux (force et vitesse). Un joueur peut occuper n\'importe quelle place : il y joue avec les notes que cette place demande. Chaque note est multipliée par la forme : un joueur à 40 de forme perd 12 %.</span></li>'
+      +'<li><b>Les joueurs</b><span>Coureurs : attaque (vitesse, puis mains). Passeurs : attaque (passe surtout). Cogneurs : défense (force surtout). Trois-quarts : un peu des deux (force et vitesse). Chaque note est multipliée par la forme : un joueur à 40 de forme perd 12 %.</span></li>'
       +'<li><b>Les bonus qui multiplient</b><span>États d\'équipe (de −10 % à +8 %), plan de jeu (jusqu\'à +10 %), contrer le plan adverse (+7 %), jouer à domicile (+5 %), consigne prudente (−6 % en attaque, +7 % en défense), suivre le conseil du stratège (+1 à +6 %), peuples (nains en défense, orques et humains partout).</span></li>'
       +'<li><b>Le marquage</b><span>Le joueur marqué perd 12 à 28 % d\'efficacité selon votre stratège ; votre attaque perd 3 %.</span></li></ul>'
       +'<p class="note">Le bouton « Comprendre et améliorer mes chances », dans Vestiaire › Match, rejoue votre prochain match des centaines de fois et montre l\'effet de chaque réglage.</p>',guide==='calcul')
     +sec('Conseils de composition','<ul>'
-      +'<li><b>La base</b><span>2 cogneurs, 2 coureurs, 1 passeur. Sans l\'un des trois postes : malus de 8 à 10 %.</span></li>'
+      +'<li><b>La base</b><span>2 cogneurs, 2 trois-quarts, 2 coureurs, 1 passeur. Sans l\'un des quatre postes : malus de 5 à 10 %.</span></li>'+LI_STYLES+''
       +'<li><b>Sang pur</b><span>7 titulaires du même peuple : +8 % partout, mais toutes les faiblesses du peuple.</span></li>'
       +'<li><b>Alliances</b><span>Humain + nain + elfe : Vieille alliance et Pacte de l\'Ouest. Orque + gobelin + elfe noir : la Horde et les Coups tordus.</span></li>'
       +'<li><b>Joyeux bazar</b><span>4 peuples différents : +7 % en attaque. Glissez un humain pour calmer les rivalités.</span></li>'
@@ -970,7 +972,7 @@ const TUTO=[
   {ch:'Clé n° 2 : les ordres',vue:'vestiaire',sous:['vestiaire','match'],cible:'.vos-chances',titre:'Vos chances de gagner',texte:"Votre meilleur outil. Le jeu <b>rejoue le prochain match 300 fois</b> avec le vrai moteur : <b style=\"color:#3d7a1f\">vert</b> victoire, <b style=\"color:#9a7a00\">jaune</b> nul, <b style=\"color:#b3261e\">rouge</b> défaite.<br>La barre <b>se recalcule dès que vous changez un ordre</b> : tentez des choses et regardez-la bouger. Le bouton en dessous classe tous les réglages, du plus utile au plus nuisible."},
   {ch:'Clé n° 2 : les ordres',vue:'vestiaire',sous:['vestiaire','match'],cible:'.choix .seg',titre:'La consigne',texte:"<b>Prudent</b> : moins de blessés et de cartons chez vous, mais −6 % en attaque.<br><b>Normal</b> : l'équilibre.<br><b>Brutal</b> : vous cognez bien plus et l'adversaire perd des joueurs… mais l'arbitre sort ses cartons.<br>Brutal convient aux équipes de cogneurs, prudent aux équipes fragiles (elfes)."},
   {ch:'Clé n° 2 : les ordres',vue:'vestiaire',sous:['vestiaire','match'],cible:'.seg.tactiques',titre:'Le plan de jeu',texte:"Comme pierre-feuille-ciseaux : <b>chaque plan en bat un autre</b>. Si le vôtre contre celui de l'adversaire : <b>+7 %</b> en attaque et en défense.<br>Certains plans demandent des postes : le Jeu au sol veut 2 coureurs, le Jeu aérien un passeur. Sans stratège, « Équilibré » ne risque rien."},
-  {ch:'Clé n° 1 : l\'équipe',vue:'vestiaire',sous:['vestiaire','equipe'],cible:'.panneau.compact',titre:'Vos sept titulaires',texte:"Sept joueurs jouent, sur 7 places : <b>1 passeur, 2 coureurs, 2 trois-quarts, 2 cogneurs</b>. L'entraîneur place chacun au mieux ; l'étiquette à côté du nom dit où il jouera. Il faut au moins un joueur de chaque métier, sinon −5 à −10 %.<br>Les pastilles <b>dorées</b> sont vos bonus d'équipe (même peuple, alliances…), les <b>rouges</b> vos malus (rivalités). « Composition auto » fait un choix sûr."},
+  {ch:'Clé n° 1 : l\'équipe',vue:'vestiaire',sous:['vestiaire','equipe'],cible:'.panneau.compact',titre:'Vos sept titulaires',texte:"Sept joueurs jouent. Le repère : <b>2 cogneurs, 2 trois-quarts, 2 coureurs, 1 passeur</b>. Sans l'un des quatre postes : −5 à −10 %. Mais vous êtes libre : à partir de 5 titulaires du même poste, l'équipe prend un <b>style</b> à elle, avec un point fort et un point faible.<br>Les pastilles <b>dorées</b> sont vos bonus d'équipe (même peuple, alliances…), les <b>rouges</b> vos malus (rivalités). « Composition auto » fait un choix sûr."},
   {ch:'Clé n° 1 : l\'équipe',vue:'vestiaire',sous:['vestiaire','equipe'],cible:'.lj',titre:'Lire un joueur',texte:"Chaque poste a sa note clé :<ul><li><b>Cogneur</b> : la force, pour la défense et les coups ;</li><li><b>Trois-quarts</b> : la force et la vitesse à parts égales, il dépanne partout ;</li><li><b>Coureur</b> : la vitesse puis les mains, pour marquer ;</li><li><b>Passeur</b> : la passe, pour lancer l'attaque.</li></ul>Touchez le portrait pour la carte complète. Touchez une pastille pour son explication."},
   {ch:'Clé n° 1 : l\'équipe',vue:'vestiaire',sous:['vestiaire','entr'],cible:'.entr-mini',titre:'La forme, le piège n° 1',texte:"La forme <b>multiplie tout</b> : un joueur à 40 de forme perd 12 % de ses notes et se blesse plus. Chaque match fatigue. Chaque semaine, choisissez pour chacun : <b>repos</b> (il récupère) ou une <b>note à travailler</b> (il progresse mais se fatigue). Alternez ! Le bouton marqué <b>★</b> est la note la plus utile à travailler pour son poste : ▲▲ signale la note principale, ▲ la secondaire, la note grisée compte peu."},
   {ch:'Jouer',vue:'vestiaire',sous:['vestiaire','match'],cible:'.barre-jouer',titre:'Lancer la journée',texte:"Quand tout est prêt, lancez la journée. Le match est simulé en 8 temps forts : le camp le plus fort a le ballon plus souvent, puis son attaque affronte la défense adverse, avec une part de chance. Vous arrivez ensuite dans la gazette."},

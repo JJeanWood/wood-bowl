@@ -209,10 +209,19 @@ const ETATS=[
   {id:'pur',nom:'Sang pur',cond:'7 titulaires du même peuple',effet:'+8 % en attaque et en défense',att:1.08,def:1.08,test:x=>x.max>=7},
   {id:'clan',nom:'Esprit de clan',cond:'5 ou 6 titulaires du même peuple',effet:'+4 % en attaque et en défense',att:1.04,def:1.04,test:x=>x.max===5||x.max===6},
   {id:'bric',nom:'Bric et broc',cond:'5 peuples différents ou plus sur le terrain',effet:"+7 % en attaque : personne ne sait ce qu'ils vont faire",att:1.07,test:x=>x.nb>=5},
-  {id:'mur',nom:'Mur de brutes',cond:'3 cogneurs titulaires ou plus',effet:'+8 % en défense, charges plus fréquentes',def:1.08,cast:1.12,test:x=>x.p.Cogneur>=3},
-  {id:'feu',nom:'Jambes de feu',cond:'3 coureurs titulaires ou plus',effet:'+7 % en attaque',att:1.07,test:x=>x.p.Coureur>=3},
-  {id:'beliers',nom:'Ligne de béliers',cond:'3 trois-quarts titulaires ou plus',effet:'+3 % en attaque et en défense',att:1.03,def:1.03,test:x=>x.p['Trois-quarts']>=3},
-  {id:'leche',nom:'Jeu léché',cond:'2 passeurs titulaires ou plus',effet:'+4 % en attaque et en défense',att:1.04,def:1.04,test:x=>x.p.Passeur>=2},
+  {id:'mur',nom:'Mur de brutes',cond:'3 ou 4 cogneurs titulaires',effet:'+8 % en défense, charges plus fréquentes',def:1.08,cast:1.12,test:x=>x.p.Cogneur===3||x.p.Cogneur===4},
+  {id:'feu',nom:'Jambes de feu',cond:'3 ou 4 coureurs titulaires',effet:'+3 % en attaque, −4 % en défense',att:1.03,def:.96,test:x=>x.p.Coureur===3||x.p.Coureur===4},
+  {id:'beliers',nom:'Ligne de béliers',cond:'3 ou 4 trois-quarts titulaires',effet:'+3 % en attaque et en défense',att:1.03,def:1.03,test:x=>x.p['Trois-quarts']===3||x.p['Trois-quarts']===4},
+  {id:'leche',nom:'Jeu léché',cond:'2 à 4 passeurs titulaires',effet:'+2 % en attaque',att:1.02,test:x=>x.p.Passeur>=2&&x.p.Passeur<=4},
+  /* LABO : les styles de poste. À partir de 5 titulaires du même poste, l'équipe joue à sa façon : un point fort, un point faible. Réglés par simulation (voir LABO.md). */
+{id:'brutes',style:1,nom:'Bande de brutes',cond:'5 ou 6 cogneurs titulaires',effet:'charges bien plus fréquentes (+35 %) et défense de fer, mais presque plus personne pour marquer : des matchs à un but',att:1.13,def:1.12,cast:1.35,test:x=>x.p.Cogneur===5||x.p.Cogneur===6},
+  {id:'rouleau',style:2,nom:'Le Rouleau',cond:'7 cogneurs titulaires',effet:"on ne joue plus au ballon, on écrase : l'adversaire finit le match décimé, deux fois plus de charges, et les buts sont rares des deux côtés (un nul sur trois)",att:1.25,def:1.2,cast:2,test:x=>x.p.Cogneur>=7},
+  {id:'charge',style:1,nom:'La Charge',cond:'5 ou 6 coureurs titulaires',effet:'attaque à toute allure, mais −10 % en défense : des matchs à cinq buts',att:1,def:.9,test:x=>x.p.Coureur===5||x.p.Coureur===6},
+  {id:'cavalerie',style:2,nom:'La Cavalerie',cond:'7 coureurs titulaires',effet:"tout le monde court au but : une pluie d'occasions, et un boulevard derrière (−22 % en défense). Six buts par match en moyenne",att:1,def:.78,test:x=>x.p.Coureur>=7},
+  {id:'fanfare',style:1,nom:'La Fanfare',cond:'5 ou 6 passeurs titulaires',effet:"ils gardent le ballon plus que leur part, mais concluent moins bien (−8 % en attaque)",att:.92,def:1.03,poss:.07,test:x=>x.p.Passeur===5||x.p.Passeur===6},
+  {id:'orchestre',style:2,nom:'Le Grand Orchestre',cond:'7 passeurs titulaires',effet:"ils confisquent le ballon : l'adversaire le voit à peine, mais eux-mêmes concluent mal (−33 % en attaque). Fragiles sous les coups",att:.67,def:1.2,poss:.2,test:x=>x.p.Passeur>=7},
+  {id:'pack',style:1,nom:'Le Pack',cond:'5 ou 6 trois-quarts titulaires',effet:"ni point fort ni point faible, et le plan de jeu adverse mord moitié moins sur eux",att:1.02,def:1.03,antiplan:.5,test:x=>x.p['Trois-quarts']===5||x.p['Trois-quarts']===6},
+  {id:'bloc',style:2,nom:'Le Bloc',cond:'7 trois-quarts titulaires',effet:"aucun point faible : le plan de jeu adverse ne mord pas sur eux. Aucun point fort non plus",att:1,def:1.01,antiplan:1,test:x=>x.p['Trois-quarts']>=7},
   {id:'soude',nom:'Vestiaire soudé',cond:"les 7 mêmes titulaires qu'au match précédent",effet:'+3 % en attaque et en défense',att:1.03,def:1.03,test:x=>x.memes},
   {id:'horde',nom:'La Horde',cond:'un orque et un gobelin titulaires',effet:'+5 % en attaque : les gobelins filent dans le sillage des charges orques',att:1.05,test:x=>x.r.orque&&x.r.gobelin},
   {id:'alliance',nom:'Vieille alliance',cond:'un humain et un nain titulaires',effet:'+5 % en défense : ils ont déjà tenu des remparts ensemble',def:1.05,test:x=>x.r.humain&&x.r.nain},
@@ -222,16 +231,16 @@ const ETATS=[
   {id:'montagnes',nom:'Guerre des montagnes',cond:'un nain et un orque alignés ensemble',effet:"−5 % en attaque : ils se font des croche-pieds",att:.95,mal:true,rival:true,test:x=>x.r.nain&&x.r.orque},
   {id:'mine',nom:'Dette de la mine',cond:'un nain et un gobelin alignés ensemble',effet:'−4 % en défense : le nain surveille ses poches au lieu du ballon',def:.96,mal:true,rival:true,test:x=>x.r.nain&&x.r.gobelin},
   {id:'mediateur',nom:'Médiateur',cond:'un humain titulaire alors qu\'une rivalité est active',effet:"+3 % partout : l'humain calme les esprits, la rivalité pèse moitié moins",att:1.03,def:1.03,test:x=>x.r.humain&&((x.r.elfe&&x.r.elfenoir)||(x.r.nain&&x.r.orque)||(x.r.nain&&x.r.gobelin))},
-  {id:'sanspas',nom:'Sans passeur',cond:'aucun passeur titulaire',effet:"−8 % en attaque : personne pour distribuer",att:.92,mal:true,test:x=>!x.p.Passeur},
-  {id:'sanscog',nom:'Sans cogneur',cond:'aucun cogneur titulaire',effet:'−10 % en défense : la porte est ouverte',def:.9,mal:true,test:x=>!x.p.Cogneur},
-  {id:'sanstq',nom:'Sans trois-quarts',cond:'aucun trois-quarts titulaire',effet:"−5 % en attaque et en défense : personne pour faire le lien",att:.95,def:.95,mal:true,test:x=>!x.p['Trois-quarts']},
-  {id:'sanscou',nom:'Sans coureur',cond:'aucun coureur titulaire',effet:'−8 % en attaque : personne pour finir les actions',att:.92,mal:true,test:x=>!x.p.Coureur}
+  {id:'sanspas',nom:'Sans passeur',cond:'aucun passeur titulaire',effet:"−8 % en attaque : personne pour distribuer",att:.92,mal:true,test:x=>!x.p.Passeur&&x.maxP<5},
+  {id:'sanscog',nom:'Sans cogneur',cond:'aucun cogneur titulaire',effet:'−10 % en défense : la porte est ouverte',def:.9,mal:true,test:x=>!x.p.Cogneur&&x.maxP<5},
+  {id:'sanstq',nom:'Sans trois-quarts',cond:'aucun trois-quarts titulaire',effet:"−5 % en attaque et en défense : personne pour faire le lien",att:.95,def:.95,mal:true,test:x=>!x.p['Trois-quarts']&&x.maxP<5},
+  {id:'sanscou',nom:'Sans coureur',cond:'aucun coureur titulaire',effet:'−8 % en attaque : personne pour finir les actions',att:.92,mal:true,test:x=>!x.p.Coureur&&x.maxP<5}
 ];
 function compterPostes(P){const p={Cogneur:0,'Trois-quarts':0,Coureur:0,Passeur:0};P.forEach(j=>{if(!j.temp)p[j.poste]++});return p}
 function etatsDe(T,P){
   const r={};P.forEach(j=>{if(j.temp)return;r[j.race]=(r[j.race]||0)+1});
   const vals=Object.values(r);const ids=P.map(j=>j.id).sort((a,b)=>a-b).join(',');
-  const x={r,p:compterPostes(P),max:Math.max(0,...vals),nb:vals.length,memes:P.length===NB_TIT&&!P.some(j=>j.temp)&&T.dernier===ids};
+  const cp=compterPostes(P);const x={r,p:cp,maxP:Math.max(...Object.values(cp)),max:Math.max(0,...vals),nb:vals.length,memes:P.length===NB_TIT&&!P.some(j=>j.temp)&&T.dernier===ids};
   return ETATS.filter(e=>e.test(x));
 }
 const dispo=p=>!p.mort&&p.blesse===0&&!p.suspendu;
@@ -466,13 +475,13 @@ function preparerRapport(S,T){
 /* ---------- Match ---------- */
 const eff=(p,k)=>p[k]*(.8+.2*p.forme/100)*(p._marque||1)*(p._jour||1);
 /* la place occupée pendant le match (sinon, le poste du joueur) */
-const pj=p=>p._pl||p.poste;
+const pj=p=>p.poste;
 function apport(p,place){
   const f=eff(p,'f'),v=eff(p,'v'),t=eff(p,'t'),mn=eff(p,'mn');place=place||pj(p);
   if(place==='Cogneur')return{a:(v+mn)/2*.55,d:(2*f+v)/3};
-  if(place==='Coureur')return{a:(2*v+mn)/3,d:(f+2*v)/3*.7};
+  if(place==='Coureur')return{a:(2*v+mn)/3,d:(f+2*v)/3*.66};
   if(place==='Trois-quarts')return{a:(f+v+mn)/3*.8,d:(f+v)/2*.85};
-  return{a:(v+3*t)/4,d:(f+v)/2*.7};
+  return{a:(v+3*t)/4,d:(f+v)/2*.67};
 }
 /* qui joue où : on essaie toutes les répartitions des 7 places et on garde celle où l'équipe est la plus forte */
 function placer(tit){
@@ -507,11 +516,10 @@ function camp(T,opt,dom){
   const{tit,reste}=onzeDe(T);
   tit.concat(reste).forEach(p=>{p._jour=formeDuJour(p)});
   let stag=0;while(tit.length<NB_TIT){tit.push(stagiaire());stag++}
-  const sol=placer(tit);tit.forEach((p,i)=>{p._pl=sol[i]});
   const et=etatsDe(T,tit);
   const m=k=>et.reduce((x,e)=>x*(e[k]||1),1);
   const tac=TACTIQUES[opt.tactique]?opt.tactique:'equilibre';
-  return{T,dom,ordres:{},libres:[],pression:!!opt.pression,tactique:tac,tacMult:1,consigne:opt.consigne,pot:opt.pot,plan:opt.plan||1,discret:et.some(e=>e.discret),marqueur:opt.marque?.97:1,terrain:tit,banc:reste,joue:new Set(tit),avertis:new Set(),score:0,stag,
+  return{T,dom,ordres:{},libres:[],pression:!!opt.pression,tactique:tac,tacMult:1,consigne:opt.consigne,pot:opt.pot,plan:opt.plan||1,discret:et.some(e=>e.discret),poss:et.reduce((s,e)=>s+(e.poss||0),0),antiplan:Math.max(0,...et.map(e=>e.antiplan||0)),marqueur:opt.marque?.97:1,terrain:tit,banc:reste,joue:new Set(tit),avertis:new Set(),score:0,stag,
     etats:et.map(e=>e.nom),etatsMal:et.filter(e=>e.mal).map(e=>e.nom),mAtt:m('att'),mDef:m('def'),mCast:m('cast'),depart:tit.map(p=>p.id).sort((a,b)=>a-b).join(','),
     st:{occ:0,tirs:0,coups:0,blInfl:0,blSubies:0,expuls:0,jaunes:0,aveugle:0,scandale:false,penalty:0,formeMoy:Math.round(tit.reduce((s,p)=>s+p.forme,0)/NB_TIT),postes:compterPostes(tit)}};
 }
@@ -519,7 +527,9 @@ function notes(c){
   const P=c.terrain,n=P.length;if(!n)return{att:1,def:1,cast:1};
   let A=0,D=0,F=0;P.forEach(p=>{const x=apport(p);const mm=mentalMult(p,c);A+=x.a*mm;D+=x.d*mm;F+=eff(p,'f')*({Cogneur:1.4,'Trois-quarts':1}[pj(p)]||.6)});
   const comp=n<NB_TIT?Math.pow(NB_TIT/n,.35):1;
-  let att=A/NB_TIT*1.08*comp*c.mAtt*c.plan*c.marqueur,def=D/NB_TIT*comp*c.mDef*c.plan;
+  /* face à un Pack ou à un Bloc, l'avantage du plan de jeu fond */
+  const plan=c.adv&&c.adv.antiplan&&c.plan>1?1+(c.plan-1)*(1-c.adv.antiplan):c.plan;
+  let att=A/NB_TIT*1.10*comp*c.mAtt*plan*c.marqueur,def=D/NB_TIT*comp*c.mDef*plan;
   const tc=TACTIQUES[c.tactique]||TACTIQUES.equilibre;const cp=compterPostes(P);const actif=!tc.cond||tc.cond(cp);
   if(actif){att*=tc.att||1;def*=tc.def||1}
   att*=c.tacMult;def*=c.tacMult;
@@ -566,9 +576,8 @@ function simMatch(S,TA,TB,opts){
   const minutes=[];for(let i=0;i<8;i++)minutes.push(ri(i*10+1,i*10+10));
   const penaltyPhase=[C[0].pot&&R()<.35?ri(0,7):-1,C[1].pot&&R()<.35?ri(0,7):-1];
   const sc=()=>[C[0].score,C[1].score];
-  const sortir=(c,p)=>{c.terrain=c.terrain.filter(x=>x!==p);c.libres.push(pj(p))};
-  /* le remplaçant qui convient le mieux à la place laissée libre */
-  const remplacer=c=>{if(c.banc.length){const pl=c.libres.pop()||null;const r=pl?c.banc.slice().sort((a,b)=>{const x=apport(a,pl),y=apport(b,pl);return(y.a+y.d)-(x.a+x.d)})[0]:c.banc[0];c.banc=c.banc.filter(x=>x!==r);r._pl=pl||r.poste;c.terrain.push(r);c.joue.add(r);return r.nom}return null};
+  const sortir=(c,p)=>{c.terrain=c.terrain.filter(x=>x!==p)};
+  const remplacer=c=>{if(c.banc.length){const r=c.banc.shift();c.terrain.push(r);c.joue.add(r);return r.nom}return null};
   const rouge=(c,i,p,m,k)=>{c.st.expuls++;sortir(c,p);P(p).cr++;if(!p.temp){p.cr++;p.suspendu=1;p.frais2=true}ev.push({m,k,c:i,j:p.nom})};
   const jaune=(c,i,p,m)=>{
     if(c.avertis.has(p)){P(p).cj++;rouge(c,i,p,m,'rouge2');return}
@@ -595,7 +604,7 @@ function simMatch(S,TA,TB,opts){
   };
   for(let ph=0;ph<8;ph++){
     const m=minutes[ph];C[0].phase=C[1].phase=ph;const N=[notes(C[0]),notes(C[1])];
-    const pA=clamp((N[0].att+N[0].def)/(N[0].att+N[0].def+N[1].att+N[1].def)+(aPouvoir(C[0].terrain,'meneur')?.045:0)-(aPouvoir(C[1].terrain,'meneur')?.045:0),.05,.95);
+    const pA=clamp((N[0].att+N[0].def)/(N[0].att+N[0].def+N[1].att+N[1].def)+(aPouvoir(C[0].terrain,'meneur')?.045:0)-(aPouvoir(C[1].terrain,'meneur')?.045:0)+C[0].poss-C[1].poss,.05,.95);
     const a=R()<pA?0:1,d=1-a;
     if(C[a].terrain.length){
       const chance=C[a].terrain.some(p=>p.trait==='chanceux')?1.04:1;
